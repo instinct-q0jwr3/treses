@@ -54,6 +54,7 @@
     text-shadow:0 1px 2px rgba(0,0,0,.25); cursor:grab;
   }
   .tile.dark{color:#1c1c28; text-shadow:none;}
+  .tile.empty{background:#1a1a26; box-shadow:inset 0 0 0 1px var(--line);}
   .tile.two{font-size:clamp(1rem,5.2vw,1.6rem);}
   .tile.three{font-size:clamp(.8rem,4.2vw,1.25rem);}
   .tile.hlm{outline:2px solid rgba(251,191,36,.6); outline-offset:-2px;}
@@ -111,8 +112,10 @@
     lo que sale por un lado vuelve por el otro. Al soltar, los <b>iguales que queden toc&aacute;ndose</b>
     se juntan por parejas en su doble (2 + 2 = 4, 4 + 4 = 8), en la casilla de m&aacute;s arriba a la
     izquierda de cada pareja; si un grupo tiene tres, se juntan dos y queda una.
-    Cada hueco se rellena con el <b>n&uacute;mero m&aacute;s peque&ntilde;o que no est&eacute; ya en el tablero</b>:
-    el relleno nunca te salva; que queden dos iguales depende solo de tus fusiones.
+    Tras una jugada con fusi&oacute;n nace <b>una sola ficha nueva</b>, en el hueco que deja la primera
+    pareja: el <b>n&uacute;mero m&aacute;s peque&ntilde;o que no est&eacute; ya en el tablero</b>. Los dem&aacute;s
+    huecos quedan <b>vac&iacute;os</b> y se desplazan con su fila o columna. El relleno nunca te salva;
+    que queden dos iguales depende solo de tus fusiones.
     Un movimiento sin fusi&oacute;n solo desplaza, sirve para preparar.
     <b>Antes de soltar</b>, si mantienes el arrastre m&aacute;s de media casilla, ver&aacute;s qu&eacute;
     parejas se juntar&iacute;an (<b>=4</b>), qu&eacute; n&uacute;meros nacer&iacute;an en los huecos (<b>+2</b>)
@@ -220,6 +223,12 @@
   }
 
   function paintTile(el, v, cls){
+    if (v === null || v === undefined){
+      el.textContent = "";
+      el.style.background = "";
+      el.className = "tile empty" + (cls ? " " + cls : "");
+      return;
+    }
     el.textContent = v;
     el.style.background = colorFor(v);
     var size = String(v).length >= 4 ? " three" : String(v).length === 3 ? " two" : "";
@@ -258,7 +267,7 @@
   function validSave(s){
     return s && Array.isArray(s.board) && s.board.length === N &&
       s.board.every(function(r){ return Array.isArray(r) && r.length === N && r.every(function(v){
-        return Number.isInteger(v) && v >= 2 && (v & (v - 1)) === 0; }); }) &&
+        return v === null || (Number.isInteger(v) && v >= 2 && (v & (v - 1)) === 0); }); }) &&
       Number.isInteger(s.score) &&
       Core.hasDuplicate(s.board); // si se quedo sin duplicados, la partida ya habia terminado
   }

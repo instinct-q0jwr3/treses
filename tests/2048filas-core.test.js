@@ -55,8 +55,9 @@ console.log("ok - newGame: 200 semillas con tablero valido (" + okCount + ")");
   eq(r.gained, 0, "columna: sin fusion");
 }
 
-// 4. Pareja: se junta en 4 en la casilla de mas arriba a la izquierda; el hueco se rellena
-//    con la menor potencia ausente (2) y eso NO vuelve a fusionar en la misma jugada.
+// 4. Pareja: se junta en 4 en la casilla de mas arriba a la izquierda; nace UNA ficha nueva
+//    en el hueco de la pareja con la menor potencia ausente (2) y eso NO vuelve a fusionar
+//    en la misma jugada.
 {
   const b = quiet();
   b[0][1] = 2;      // pareja de doses en la fila 0
@@ -83,6 +84,7 @@ console.log("ok - newGame: 200 semillas con tablero valido (" + okCount + ")");
   eq(r.merges.length, 1, "trio: una sola pareja se junta");
   eq(r.state.board[0][0], 4, "trio: 4 en la primera casilla");
   eq(r.state.board[0][2], 2, "trio: la tercera ficha se queda");
+  eq(r.fills.length, 1, "trio: nace una sola ficha nueva");
   eq(r.fills[0].value, 8, "trio: relleno con la menor potencia ausente (2 y 4 ya estan)");
 }
 
@@ -139,6 +141,54 @@ console.log("ok - newGame: 200 semillas con tablero valido (" + okCount + ")");
   const snapshot = JSON.stringify(st);
   C.move(st, "row", 0, -1);
   eq(JSON.stringify(st), snapshot, "move no muta el estado de entrada");
+}
+
+
+// 11. Jugada con dos parejas: solo nace UNA ficha (en el hueco de la primera); el otro hueco
+//     queda vacio y los huecos no cuentan para la derrota ni para los grupos.
+{
+  const b = quiet();
+  b[0][1] = 2; b[1][0] = 2; b[1][1] = 2; // bloque de cuatro doses: dos parejas
+  const st = { board: b, score: 0 };
+  const r = C.move(st, "row", 2, 1);
+  eq(r.merges.length, 2, "drenaje: dos parejas fusionan");
+  eq(r.fills.length, 1, "drenaje: nace una sola ficha nueva por jugada");
+  eqArr(r.fills[0].at, [0, 1], "drenaje: la ficha nueva nace en el hueco de la primera pareja");
+  eq(r.state.board[1][1], null, "drenaje: el hueco de la segunda pareja queda vacio");
+  eq(r.gameOver, false, "drenaje: quedan dos 4, partida viva");
+}
+
+// 12. Los huecos se desplazan con la linea y no fusionan entre si.
+{
+  const b = quiet();
+  b[0][0] = null; b[3][3] = 64; // un hueco y un duplicado lejano para seguir vivos
+  const st = { board: b, score: 0 };
+  const r = C.move(st, "row", 0, 1); // desplaza la fila con el hueco
+  eq(r.state.board[0][1], null, "hueco: se desplaza con la fila");
+  eq(r.gained, 0, "hueco: los huecos no fusionan");
+  eq(r.fills.length, 0, "hueco: sin fusion no nace ficha");
+  const r2 = C.move({ board: [
+    [null,null,8,16],
+    [32,64,128,256],
+    [512,1024,2048,4096],
+    [8192,16384,32768,65536]
+  ], score: 0 }, "row", 1, 1);
+  eq(r2.gained, 0, "hueco: dos huecos adyacentes no son una pareja");
+}
+
+// 13. Derrota con huecos: la ultima pareja fusiona, la ficha nueva es distinta de todo
+//     y los huecos no salvan la partida.
+{
+  const st = { board: [
+    [2,2,null,16],
+    [32,64,128,256],
+    [512,1024,2048,4096],
+    [8192,16384,32768,65536]
+  ], score: 0 };
+  const r = C.move(st, "row", 1, 1);
+  eq(r.gained, 4, "derrota con huecos: la pareja puntua");
+  eq(C.hasDuplicate(r.state.board), false, "derrota con huecos: sin dos iguales entre fichas");
+  eq(r.gameOver, true, "derrota con huecos: gameOver");
 }
 
 if (failures === 0) console.log("Todos los tests de 2048 por filas pasan.");

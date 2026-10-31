@@ -7,9 +7,14 @@
    - Al soltar, los grupos de iguales que se toquen (4-conectados) se fusionan por PAREJAS en orden
      de lectura: cada pareja se convierte en el doble en su casilla de mas arriba a la izquierda;
      si un grupo tiene un numero impar de fichas, la ultima se queda como estaba.
-   - Cada hueco se rellena con la MENOR potencia de 2 que no este ya en el tablero: el relleno nunca
-     crea duplicados; mantener viva la partida (que haya dos iguales) depende solo de tus fusiones.
-   - DERROTA: si tras resolver la jugada no quedan dos valores iguales en todo el tablero, fin.
+   - Tras una jugada con fusion nace UNA sola ficha, en el hueco que deja la primera pareja: la MENOR
+     potencia de 2 que no este ya en el tablero. Los demas huecos quedan VACIOS y se desplazan con
+     su fila o columna. El relleno nunca crea duplicados; mantener viva la partida (que haya dos
+     iguales) depende solo de tus fusiones. (Ajuste de balance 2026-10-31: antes cada hueco nacia
+     con la menor potencia ausente, lo que llenaba el tablero de fichas enormes en pocos movimientos
+     y disparaba los puntos; una sola ficha nueva por jugada mantiene la progresion tipo 2048.)
+   - DERROTA: si tras resolver la jugada no quedan dos valores iguales entre las fichas del tablero
+     (los huecos no cuentan), fin.
    - Todo es determinista: la previsualizacion del arrastre muestra exactamente lo que pasara. */
 (function(root, factory){
   var api = factory();
@@ -57,6 +62,7 @@
     var seen = {};
     for (var r = 0; r < N; r++) for (var c = 0; c < N; c++){
       var v = board[r][c];
+      if (v === null || v === undefined) continue; // los huecos no cuentan
       if (seen[v]) return true;
       seen[v] = true;
     }
@@ -69,6 +75,7 @@
     for (r = 0; r < N; r++){ seen.push([]); for (c = 0; c < N; c++) seen[r].push(false); }
     for (r = 0; r < N; r++) for (c = 0; c < N; c++){
       if (seen[r][c]) continue;
+      if (board[r][c] === null || board[r][c] === undefined){ seen[r][c] = true; continue; } // hueco
       var v = board[r][c], stack = [[r, c]], cells = [];
       seen[r][c] = true;
       while (stack.length){
@@ -117,7 +124,7 @@
     }
     var shifted = cloneBoard(board);
 
-    var merges = [], fills = [], gained = 0;
+    var merges = [], fills = [], gained = 0, firstGap = null;
     var groups = findGroups(board);
     for (var g = 0; g < groups.length; g++){
       var group = groups[g];
@@ -125,19 +132,18 @@
         var a = group.cells[p], b = group.cells[p + 1];
         board[a[0]][a[1]] = group.value * 2;
         board[b[0]][b[1]] = null;
+        if (!firstGap) firstGap = b;
         merges.push({ at: a, tile: group.value * 2, cells: [a, b], value: group.value });
         gained += group.value * 2;
       }
       // si el grupo tiene un numero impar de fichas, la ultima se queda como estaba
     }
     if (gained > 0){
-      for (r = 0; r < N; r++) for (c = 0; c < N; c++){
-        if (board[r][c] === null){
-          var v = smallestAbsent(board);
-          board[r][c] = v;
-          fills.push({ at: [r, c], value: v });
-        }
-      }
+      // Una sola ficha nueva por jugada (progresion tipo 2048): la menor potencia de 2
+      // ausente, en el hueco de la primera pareja. El resto de huecos quedan vacios.
+      var v = smallestAbsent(board);
+      board[firstGap[0]][firstGap[1]] = v;
+      fills.push({ at: [firstGap[0], firstGap[1]], value: v });
     }
     return {
       state: { board: board, score: state.score + gained },
