@@ -93,6 +93,25 @@ m = C.move(state, "col", 0, -1, rng); // [2,2,1,3,2] arriba -> [2,1,3,2,2]: pare
 eqArr(m.state.board.map(row => row[0]), [2,1,3,4,9], "columna: rotada y pareja colapsada hacia arriba del grupo (pos 3)");
 eq(m.gained, 4, "puntos de la columna");
 
+// 6b. Un grupo de 5 genera 4 huecos, mas que la cola: ningun hueco queda vacio
+state = {
+  board: [
+    [2,2,2,2,2],
+    [1,3,1,3,1],
+    [3,1,3,1,3],
+    [1,3,1,3,1],
+    [3,1,3,1,3]
+  ],
+  queue: [7,8,9],
+  score: 0
+};
+m = C.move(state, "row", 0, 1, rng); // rota igual (todos 2), colapsa a 10 al final
+eq(m.state.board[0][4], 10, "cinco doses colapsan en 10 al final");
+eq(m.fresh.length, 4, "cuatro huecos rellenados");
+ok(m.state.board[0].slice(0,4).every(v => Number.isInteger(v) && v >= 1), "ningun hueco vacio tras agotar la cola");
+eqArr(m.state.board[0].slice(0,3), [7,8,9], "los tres primeros huecos vienen de la cola");
+eq(m.state.queue.length, 3, "cola repuesta");
+
 // 7. Partida nueva
 rng = mulberry32(7);
 const g = C.newGame(rng);

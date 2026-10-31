@@ -100,7 +100,11 @@
     var filled = res.line.slice();
     var fresh = [];
     for (var i = 0; i < filled.length; i++){
-      if (filled[i] === null){ filled[i] = queue.shift(); fresh.push(i); }
+      if (filled[i] === null){
+        // un grupo de 5 genera 4 huecos: si la cola se agota, sale pieza nueva
+        filled[i] = queue.length ? queue.shift() : spawnValue(rng);
+        fresh.push(i);
+      }
     }
     queue = refillQueue(queue, rng);
     setLine(board, type, index, filled);
