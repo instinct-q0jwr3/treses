@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Treses</title>
+<style>
+  :root{
+    --bg:#f4f1ec; --board:#ddd5c9; --cell:#cfc6b8;
+    --ink:#4a4038; --accent:#e2645a; --accent2:#4d8fd1;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(92vw,430px); padding:max(12px, env(safe-area-inset-top)) 0 20px;}
+  h1{font-size:1.5rem; margin:10px 0 8px; letter-spacing:.5px;}
+  h1 .dot{color:var(--accent);}
+  .topbar{display:flex; gap:8px; align-items:stretch; margin-bottom:12px;}
+  .box{
+    flex:1; background:#fff; border-radius:10px; padding:6px 10px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .box .label{font-size:.62rem; text-transform:uppercase; letter-spacing:.8px; color:#9b8f81; font-weight:700;}
+  .box .val{font-size:1.15rem; font-weight:800; line-height:1.2;}
+  .next-box{flex:1.2; flex-direction:row; gap:8px;}
+  .mini-tile{
+    width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:1rem; box-shadow:inset 0 -3px 0 rgba(0,0,0,.12);
+  }
+  .board{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+    background:var(--board); border-radius:14px; padding:10px;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  .cell{
+    aspect-ratio:1; border-radius:10px; background:var(--cell);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:clamp(1.5rem,8.5vw,2.4rem); color:#fff;
+    box-shadow:inset 0 -4px 0 rgba(0,0,0,.10);
+    transition:transform .08s ease;
+  }
+  .cell.empty{box-shadow:none;}
+  .cell.t1{background:var(--accent);}
+  .cell.t2{background:var(--accent2);}
+  .cell.tn{background:#fff; color:var(--ink);}
+  .cell.small{font-size:clamp(1.1rem,6vw,1.8rem);}
+  .cell.tiny{font-size:clamp(.9rem,4.8vw,1.4rem);}
+  .cell.pop{animation:pop .15s ease;}
+  @keyframes pop{0%{transform:scale(.75);}100%{transform:scale(1);}}
+  .actions{margin-top:12px; display:flex; gap:8px;}
+  button{
+    flex:1; border:0; border-radius:10px; padding:12px; font-size:1rem; font-weight:700;
+    background:var(--ink); color:#fff; cursor:pointer;
+  }
+  button:active{opacity:.85;}
+  .hint{font-size:.8rem; color:#9b8f81; text-align:center; margin:12px 4px 0; line-height:1.45;}
+  .overlay{
+    position:fixed; inset:0; background:rgba(40,32,26,.5);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .overlay.hidden{display:none;}
+  .card{
+    background:#fff; border-radius:16px; padding:24px; text-align:center;
+    width:min(86vw,320px); box-shadow:0 10px 40px rgba(0,0,0,.25);
+  }
+  .card h2{margin:0 0 8px;}
+  .card p{margin:6px 0;}
+  .card .record{color:var(--accent); font-weight:800;}
+  .card button{margin-top:14px; width:100%;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Treses<span class="dot">.</span></h1>
+  <div class="topbar">
+    <div class="box"><span class="label">Puntos</span><span class="val" id="score">0</span></div>
+    <div class="box"><span class="label">Récord</span><span class="val" id="best">0</span></div>
+    <div class="box next-box"><span class="label">Siguiente</span><span class="mini-tile" id="next">1</span></div>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="actions">
+    <button id="newgame" type="button">Nueva partida</button>
+  </div>
+  <p class="hint">Desliza para mover las fichas. Junta <b>1 + 2</b> para hacer 3; luego 3 + 3, 6 + 6, 12 + 12… La partida se guarda sola.</p>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="card">
+    <h2>Fin de la partida</h2>
+    <p>Puntos: <b id="final">0</b></p>
+    <p class="record hidden" id="record">¡Nuevo récord!</p>
+    <button id="again" type="button">Otra partida</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SIZE=4, SAVE_KEY="treses-save-v1";
+  var board, score, best, bag, nextVal, over;
+  var boardEl=document.getElementById("board");
+  var scoreEl=document.getElementById("score");
+  var bestEl=document.getElementById("best");
+  var nextEl=document.getElementById("next");
+  var overlay=document.getElementById("overlay");
+  var finalEl=document.getElementById("final");
+  var recordEl=document.getElementById("record");
+
+  function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+  function refillBag(){bag=shuffle([1,1,1,1,2,2,2,2,3,3,3,3]);}
+  function maxTile(){var m=0;for(var r=0;r<SIZE;r++)for(var c=0;c<SIZE;c++)if(board[r][c]>m)m=board[r][c];return m;}
+  function drawTile(){
+    if(maxTile()>=48 && Math.random()<0.045){
+      var hi=maxTile()/8, opts=[];
+      for(var v=6;v<=hi;v*=2)opts.push(v);
+      if(opts.length)return opts[Math.floor(Math.random()*opts.length)];
+    }
+    if(!bag.length)refillBag();
+    return bag.pop();
+  }
+  function pointsOf(v){
+    if(v<3)return 0;
+    var k=Math.round(Math.log(v/3)/Math.log(2));
+    return Math.pow(3,k+1);
+  }
+  function canMerge(a,b){
+    return (a===1&&b===2)||(a===2&&b===1)||(a===b&&a>=3);
+  }
+
+  function newGame(){
+    board=[];for(var r=0;r<SIZE;r++){board.push([0,0,0,0]);}
+    score=0;over=false;refillBag();
+    nextVal=drawTile();
+    for(var i=0;i<9;i++)spawnRandom();
+    overlay.classList.add("hidden");
+    render();save();
+  }
+
+  function emptyCells(){
+    var out=[];
+    for(var r=0;r<SIZE;r++)for(var c=0;c<SIZE;c++)if(board[r][c]===0)out.push([r,c]);
+    return out;
+  }
+  function spawnRandom(){
+    var cells=emptyCells();
+    if(!cells.length)return;
+    var p=cells[Math.floor(Math.random()*cells.length)];
+    board[p[0]][p[1]]=drawTile();
+  }
+  function spawnAfterMove(dir){
+    var cells=[],c,r;
+    if(dir==="up"){r=SIZE-1;for(c=0;c<SIZE;c++)cells.push([r,c]);}
+    else if(dir==="down"){r=0;for(c=0;c<SIZE;c++)cells.push([r,c]);}
+    else if(dir==="left"){c=SIZE-1;for(r=0;r<SIZE;r++)cells.push([r,c]);}
+    else{c=0;for(r=0;r<SIZE;r++)cells.push([r,c]);}
+    var empt=cells.filter(function(p){return board[p[0]][p[1]]===0;});
+    var pool=empt.length?empt:emptyCells();
+    if(!pool.length)return;
+    var p=pool[Math.floor(Math.random()*pool.length)];
+    board[p[0]][p[1]]=nextVal;
+    nextVal=drawTile();
+    return p;
+  }
+
+  function slideLine(line){
+    var res=line.slice(),moved=false,gained=0,mergedAt=-1;
+    var stationary=[true,true,true,true];
+    for(var i=1;i<SIZE;i++){
+      var v=res[i];
+      if(v===0)continue;
+      if(res[i-1]===0){
+        res[i-1]=v;res[i]=0;stationary[i-1]=false;moved=true;
+      }else if(stationary[i-1]&&mergedAt!==i-1&&canMerge(res[i-1],v)){
+        var m=(res[i-1]+v===3)?3:res[i-1]*2;
+        gained+=pointsOf(m);
+        res[i-1]=m;res[i]=0;stationary[i-1]=false;mergedAt=i-1;moved=true;
+      }
+    }
+    return{line:res,moved:moved,gained:gained};
+  }
+
+  function getLine(dir,idx){
+    var line=[];
+    for(var i=0;i<SIZE;i++){
+      if(dir==="up")line.push(board[i][idx]);
+      else if(dir==="down")line.push(board[SIZE-1-i][idx]);
+      else if(dir==="left")line.push(board[idx][i]);
+      else line.push(board[idx][SIZE-1-i]);
+    }
+    return line;
+  }
+  function setLine(dir,idx,line){
+    for(var i=0;i<SIZE;i++){
+      if(dir==="up")board[i][idx]=line[i];
+      else if(dir==="down")board[SIZE-1-i][idx]=line[i];
+      else if(dir==="left")board[idx][i]=line[i];
+      else board[idx][SIZE-1-i]=line[i];
+    }
+  }
+
+  function move(dir){
+    if(over)return;
+    var anyMoved=false,gain=0;
+    for(var idx=0;idx<SIZE;idx++){
+      var r=slideLine(getLine(dir,idx));
+      if(r.moved){anyMoved=true;setLine(dir,idx,r.line);gain+=r.gained;}
+    }
+    if(!anyMoved)return;
+    score+=gain;
+    var popCell=spawnAfterMove(dir);
+    if(score>best)best=score;
+    render(popCell);
+    save();
+    if(!movesAvailable()){
+      over=true;
+      save();
+      finalEl.textContent=score;
+      var isRecord=(score>=best&&score>0);
+      recordEl.classList.toggle("hidden",!isRecord);
+      setTimeout(function(){overlay.classList.remove("hidden");},250);
+    }
+  }
+
+  function movesAvailable(){
+    var r,c;
+    for(r=0;r<SIZE;r++)for(c=0;c<SIZE;c++)if(board[r][c]===0)return true;
+    for(r=0;r<SIZE;r++)for(c=0;c<SIZE;c++){
+      if(c+1<SIZE&&canMerge(board[r][c],board[r][c+1]))return true;
+      if(r+1<SIZE&&canMerge(board[r][c],board[r+1][c]))return true;
+    }
+    return false;
+  }
+
+  function tileClass(v){
+    if(v===1)return"t1";
+    if(v===2)return"t2";
+    return"tn";
+  }
+  function render(popCell){
+    boardEl.innerHTML="";
+    for(var r=0;r<SIZE;r++)for(var c=0;c<SIZE;c++){
+      var d=document.createElement("div");
+      var v=board[r][c];
+      if(v===0){d.className="cell empty";}
+      else{
+        d.className="cell "+tileClass(v);
+        if(v>=512)d.className+=" tiny";
+        else if(v>=48)d.className+=" small";
+        d.textContent=v;
+        if(popCell&&popCell[0]===r&&popCell[1]===c)d.className+=" pop";
+      }
+      boardEl.appendChild(d);
+    }
+    scoreEl.textContent=score;
+    bestEl.textContent=best;
+    nextEl.textContent=nextVal;
+    nextEl.className="mini-tile "+tileClass(nextVal);
+  }
+
+  function save(){
+    try{localStorage.setItem(SAVE_KEY,JSON.stringify({board:board,score:score,best:best,bag:bag,nextVal:nextVal,over:over}));}catch(e){}
+  }
+  function load(){
+    try{
+      var s=localStorage.getItem(SAVE_KEY);
+      if(!s)return false;
+      var o=JSON.parse(s);
+      if(!o||!o.board||o.board.length!==SIZE)return false;
+      board=o.board;score=o.score||0;best=o.best||0;bag=o.bag||[];nextVal=o.nextVal||1;over=!!o.over;
+      return true;
+    }catch(e){return false;}
+  }
+
+  // Entrada táctil
+  var sx=0,sy=0,tracking=false;
+  boardEl.addEventListener("touchstart",function(e){
+    var t=e.changedTouches[0];sx=t.clientX;sy=t.clientY;tracking=true;
+  },{passive:true});
+  boardEl.addEventListener("touchmove",function(e){e.preventDefault();},{passive:false});
+  boardEl.addEventListener("touchend",function(e){
+    if(!tracking)return;tracking=false;
+    var t=e.changedTouches[0];
+    var dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
+    if(Math.abs(dx)>Math.abs(dy))move(dx>0?"right":"left");
+    else move(dy>0?"down":"up");
+  });
+  // Teclado (escritorio)
+  document.addEventListener("keydown",function(e){
+    var map={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right"};
+    if(map[e.key]){e.preventDefault();move(map[e.key]);}
+  });
+  // Ratón (arrastre, escritorio)
+  var md=false;
+  boardEl.addEventListener("mousedown",function(e){sx=e.clientX;sy=e.clientY;md=true;});
+  document.addEventListener("mouseup",function(e){
+    if(!md)return;md=false;
+    var dx=e.clientX-sx,dy=e.clientY-sy;
+    if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
+    if(Math.abs(dx)>Math.abs(dy))move(dx>0?"right":"left");
+    else move(dy>0?"down":"up");
+  });
+
+  document.getElementById("newgame").addEventListener("click",newGame);
+  document.getElementById("again").addEventListener("click",newGame);
+
+  best=0;
+  if(!load()){best=0;newGame();}
+  else{
+    render();
+    if(over){
+      finalEl.textContent=score;
+      recordEl.classList.toggle("hidden",!(score>=best&&score>0));
+      overlay.classList.remove("hidden");
+    }
+  }
+})();
+</script>
+</body>
+</html>
