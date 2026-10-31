@@ -1,16 +1,18 @@
 /* Desborde - logica pura del juego (sin DOM). La usan desborde.html y tests/desborde-core.test.js
-   Reglas acordadas con el usuario:
-   - Tablero 5x5. Al empezar cada turno nunca hay dos numeros iguales adyacentes (horizontal ni vertical).
+   Reglas acordadas con el usuario (variante aprobada el 2026-10-31):
+   - Tablero 5x5 con valores del 1 al 7 en ciclo: si una suma pasa de 7, vuelve al principio
+     (8 -> 1, 9 -> 2, ...). Al empezar cada turno nunca hay dos iguales adyacentes.
    - Un movimiento desplaza una fila o columna UNA casilla; lo que sale por un lado entra por el otro.
-   - Al soltar se buscan grupos de iguales que se toquen (4-conectados), en fila o en columna, y se
-     fusionan en su suma. Si varios grupos se cruzan, todo el grupo conectado se fusiona en una ficha.
+   - Al soltar, los grupos de iguales que se toquen (4-conectados) se fusionan en su suma (con ciclo).
+     Si varios grupos se cruzan, todo el grupo conectado se fusiona en una ficha.
    - Oleada 1: la suma queda en la celda del grupo que esta en la linea movida; si hay varias, en la
-     mas alejada en la direccion del movimiento. Oleadas siguientes: la suma queda en la ficha creada
-     en la oleada anterior que provoco la coincidencia (empate: la de mas arriba a la izquierda);
-     si ninguna, en la celda de mas arriba a la izquierda del grupo.
-   - Cada hueco se rellena con un 1 fijo. Las nuevas coincidencias se resuelven en oleadas sucesivas
-     hasta que el tablero queda estable; solo entonces se permite otro movimiento.
-   - Sin reloj, sin game over, con deshacer. Puntos: la suma completa de cada fusion. */
+     mas alejada en la direccion del movimiento. Desde la oleada 2: en la celda de mas arriba y mas
+     a la izquierda del grupo (ajuste aprobado por el usuario el 2026-10-31 tras medir bucles).
+   - Cada hueco se rellena, de arriba abajo y de izquierda a derecha, con el MENOR valor que no
+     coincida con sus vecinos ya ocupados: el relleno nunca crea parejas; solo las fichas fusionadas
+     pueden provocar las oleadas siguientes. Cascadas hasta estabilizar antes de otro movimiento.
+   - Sin reloj, sin game over, con deshacer. Puntos: la suma completa de cada fusion, aunque la ficha
+     vuelva al principio del ciclo. */
 (function(root, factory){
   var api = factory();
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
@@ -20,7 +22,7 @@
 
   var N = 5;
   var SAVE_KEY = "desborde-save-v2";
-  var REFILL = 1;         // reposicion fija
+  var MOD = 7;            // ciclo de valores 1..MOD
   var WAVE_BUDGET = 200;  // presupuesto de oleadas por jugada; maximo observado en simulacion: 37.
                           // Si se supera o se repite un estado, la jugada se revierte entera.
 
@@ -101,9 +103,10 @@
         return best;
       }
     }
-    var provokers = group.cells.filter(function(cell){ return created[cell[0] + "," + cell[1]]; });
-    var pool = provokers.length ? provokers : group.cells; // cells ya viene ordenado fila-columna
-    return pool[0];
+    // Desde la segunda oleada: la celda de mas arriba y mas a la izquierda del grupo
+    // (cells ya viene ordenado fila-columna). Ajuste aprobado por el usuario: con anclaje
+    // en la ficha provocadora ~1,5% de jugadas entraban en bucle; con esta, 0,07% en simulacion.
+    return group.cells[0];
   }
 
   // Aplica un movimiento completo: rota una casilla y resuelve todas las oleadas.
@@ -128,23 +131,42 @@
       if (!groups.length) break;
       wave++;
       if (wave > budget) return { reverted: true, state: { board: cloneBoard(state.board), score: state.score }, waves: wave, reason: "budget" };
-      var merges = [], fresh = [], waveGained = 0, newCreated = {};
+      var merges = [], fresh = [], waveGained = 0, newCreated = [], j, cell;
       for (var g = 0; g < groups.length; g++){
         var group = groups[g];
         var at = anchorFor(group, wave, type, index, dir, created);
         var sum = group.value * group.cells.length;
-        for (var j = 0; j < group.cells.length; j++){
-          var cell = group.cells[j];
-          if (cell[0] === at[0] && cell[1] === at[1]) board[cell[0]][cell[1]] = sum;
-          else { board[cell[0]][cell[1]] = REFILL; fresh.push(cell); }
+        var wrapped = ((sum - 1) % MOD) + 1;
+        for (j = 0; j < group.cells.length; j++){
+          cell = group.cells[j];
+          if (cell[0] === at[0] && cell[1] === at[1]) board[cell[0]][cell[1]] = wrapped;
+          else { board[cell[0]][cell[1]] = null; fresh.push(cell); }
         }
-        newCreated[at[0] + "," + at[1]] = true;
-        merges.push({ at: at, sum: sum, count: group.cells.length, value: group.value, cells: group.cells });
-        waveGained += sum;
+        newCreated.push(at);
+        merges.push({ at: at, sum: sum, tile: wrapped, count: group.cells.length, value: group.value, cells: group.cells });
+        waveGained += sum; // puntos con la suma completa, aunque la ficha vuelva al principio del ciclo
       }
-      created = newCreated;
+      // Relleno: menor valor que no coincida con vecinos ya ocupados, en orden fila-columna.
+      fresh.sort(function(a, b){ return a[0] - b[0] || a[1] - b[1]; });
+      var fills = [];
+      for (j = 0; j < fresh.length; j++){
+        cell = fresh[j];
+        var bad = {};
+        var nb = [[cell[0]+1,cell[1]],[cell[0]-1,cell[1]],[cell[0],cell[1]+1],[cell[0],cell[1]-1]];
+        for (var k = 0; k < 4; k++){
+          var nr = nb[k][0], nc = nb[k][1];
+          if (nr >= 0 && nr < N && nc >= 0 && nc < N && board[nr][nc] !== null) bad[board[nr][nc]] = true;
+        }
+        var v = 1;
+        while (bad[v]) v++; // siempre existe: MOD=7 > 4 vecinos
+        board[cell[0]][cell[1]] = v;
+        fills.push({ at: cell, value: v });
+      }
+      var createdMap = {};
+      for (j = 0; j < newCreated.length; j++) createdMap[newCreated[j][0] + "," + newCreated[j][1]] = true;
+      created = createdMap;
       gained += waveGained;
-      steps.push({ board: cloneBoard(board), merges: merges, fresh: fresh, gained: waveGained });
+      steps.push({ board: cloneBoard(board), merges: merges, fresh: fresh, fills: fills, gained: waveGained });
       var key = JSON.stringify(board);
       if (seen[key]) return { reverted: true, state: { board: cloneBoard(state.board), score: state.score }, waves: wave, reason: "loop" };
       seen[key] = true;
@@ -157,7 +179,7 @@
   }
 
   return {
-    N: N, SAVE_KEY: SAVE_KEY, REFILL: REFILL, WAVE_BUDGET: WAVE_BUDGET,
+    N: N, SAVE_KEY: SAVE_KEY, MOD: MOD, WAVE_BUDGET: WAVE_BUDGET,
     newGame: newGame, cloneBoard: cloneBoard, maxTile: maxTile,
     findGroups: findGroups, anchorFor: anchorFor, move: move
   };

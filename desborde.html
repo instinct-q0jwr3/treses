@@ -76,7 +76,7 @@
 
   <div class="topbar">
     <div class="box"><span class="label">Puntos</span><span class="val" id="score">0</span></div>
-    <div class="box"><span class="label">Mejor ficha</span><span class="val" id="best">0</span></div>
+    <div class="box"><span class="label">Mejor jugada</span><span class="val" id="best">0</span></div>
     <button class="btn" id="undo">Deshacer</button>
     <button class="btn" id="new">Nueva</button>
   </div>
@@ -88,8 +88,10 @@
     <b>C&oacute;mo se juega:</b> arrastra una fila o columna <b>una casilla</b> (o toca sus flechas).
     Al soltar, los <b>n&uacute;meros iguales que queden toc&aacute;ndose</b>, en fila o en columna,
     se juntan en su suma, que se queda en la l&iacute;nea que moviste (2 + 2 = 4, 2 + 2 + 2 = 6).
-    Cada hueco se rellena con un <b>1</b> y las nuevas coincidencias se juntan en <b>oleadas</b>.
-    Sin reloj: consigue la ficha m&aacute;s alta que puedas.
+    Las fichas van del 1 al 7 y dan la vuelta: si una suma pasa de 7, vuelve a empezar
+    (7 + 1 = 1), aunque los puntos cuentan enteros. Cada hueco se rellena con el valor
+    m&aacute;s peque&ntilde;o que no repita vecino, y las nuevas coincidencias se juntan en <b>oleadas</b>.
+    Sin reloj: suma puntos y encadena oleadas.
   </div>
 </div>
 
@@ -120,14 +122,10 @@
       case 5: return "#f87171";
       case 6: return "#e879f9";
       case 7: return "#a78bfa";
-      case 8: return "#60a5fa";
-      case 9: return "#f472b6";
-      case 10: return "#fde047";
-      case 11: return "#4ade80";
-      default: return v >= 12 ? "#f8fafc" : "#94a3b8";
+      default: return "#94a3b8";
     }
   }
-  function darkText(v){ return v === 3 || v === 10 || v === 11 || v >= 12; }
+  function darkText(v){ return v === 3; }
 
   function pos(i){ return GAP + i * step; }
 
@@ -190,8 +188,7 @@
   function paintTile(el, v, cls){
     el.textContent = v;
     el.style.background = colorFor(v);
-    el.className = "tile" + (darkText(v) ? " dark" : "") +
-      (v >= 100 ? " three" : v >= 10 ? " two" : "") + (cls ? " " + cls : "");
+    el.className = "tile" + (darkText(v) ? " dark" : "") + (cls ? " " + cls : "");
   }
 
   // fx: {hl:[[r,c]], pop:[[r,c]], fresh:[[r,c]], moved:{type,index}}
@@ -224,7 +221,7 @@
 
   function validSave(s){
     return s && Array.isArray(s.board) && s.board.length === N &&
-      s.board.every(function(r){ return Array.isArray(r) && r.length === N && r.every(function(v){ return Number.isInteger(v) && v >= 1; }); }) &&
+      s.board.every(function(r){ return Array.isArray(r) && r.length === N && r.every(function(v){ return Number.isInteger(v) && v >= 1 && v <= Core.MOD; }); }) &&
       Number.isInteger(s.score) &&
       Core.findGroups(s.board).length === 0; // invariante: nunca iguales adyacentes al cargar
   }
@@ -236,13 +233,13 @@
         var s = JSON.parse(raw);
         if (validSave(s)){
           state = { board: s.board, score: s.score };
-          best = Number.isInteger(s.best) ? s.best : Core.maxTile(s.board);
+          best = Number.isInteger(s.best) ? s.best : 0;
           return;
         }
       }
     }catch(e){}
     state = Core.newGame();
-    best = Core.maxTile(state.board);
+    best = 0;
   }
 
   function save(){
@@ -267,8 +264,7 @@
     history.push(prev);
     if (history.length > 100) history.shift();
     state = res.state;
-    var m = Core.maxTile(state.board);
-    if (m > best) best = m;
+    if (res.gained > best) best = res.gained;
     save();
 
     var steps = res.steps;
@@ -395,7 +391,7 @@
   newBtn.addEventListener("click", function(){
     if (busy) return;
     state = Core.newGame();
-    best = Core.maxTile(state.board);
+    best = 0;
     history = [];
     msgEl.textContent = "";
     save();
