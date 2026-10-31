@@ -10,7 +10,7 @@
      la suma o las fichas hace la puntuacion insalvable hasta jugando bien. Con -1 por
      fusion, juego al azar pierde despacio y juego atento sube. La onda es la otra perdida.)
    - Impacto: cada fusion suelta una onda desde la casilla de la suma con radio
-     (fichas fusionadas - 1); toda casilla dentro del radio baja 1 (minimo 1), salvo el ancla.
+     min(fichas fusionadas - 1, 2); toda casilla dentro del radio baja 1 (minimo 1), salvo el ancla.
      La onda se aplica al final de la jugada y NUNCA fusiona: puede dejar iguales adyacentes
      preparados (o estropeados) para la jugada siguiente.
    - Relleno: menor valor que no coincida con vecinos ya ocupados, de arriba abajo y de
@@ -25,6 +25,8 @@
   var N = 10;
   var SAVE_KEY = "impacto-save-v1";
   var TARGET = 2;         // unico valor que suma puntos al fusionarse
+  var MAX_RADIUS = 2;    // techo de la onda: una pareja llega al anillo 1; tres o mas, al anillo 2.
+                         // Sin techo, una fusion grande podia bajar 1 a medio tablero y homogeneizarlo a unos.
   var WAVE_BUDGET = 200;  // presupuesto de oleadas por jugada; si se supera o se repite
                           // un estado, la jugada se revierte entera (recuperacion, no prueba).
 
@@ -153,7 +155,7 @@
         merges.push({ at: at, sum: sum, tile: sum, count: group.cells.length, value: group.value, cells: group.cells });
         waveGained += (group.value === TARGET) ? sum : -1; // doses suman la suma; otras fusiones cuestan 1
         if (group.value === TARGET) doses += group.cells.length;
-        impacts.push({ at: at, radius: group.cells.length - 1 });
+        impacts.push({ at: at, radius: Math.min(group.cells.length - 1, MAX_RADIUS) });
       }
       fresh.sort(function(a, b){ return a[0] - b[0] || a[1] - b[1]; });
       var fills = [];

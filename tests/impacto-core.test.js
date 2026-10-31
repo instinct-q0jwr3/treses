@@ -198,5 +198,20 @@ var res9 = C.move({ board: C.cloneBoard(c3.pre), score: 7, doses: 1 }, "row", 3,
 ok(res9.reverted === true && res9.reason === "budget", "presupuesto 0 -> jugada revertida");
 ok(res9.state.score === 7 && res9.state.doses === 1, "la reversion no toca puntos ni doses");
 
+
+// 10. Techo de onda: un grupo de 4 doses alcanza radio 2 (24 casillas - ancla - bordes), no 3.
+var c10 = craft(8, 1, [{ value: 2, cells: [[8, 3], [8, 4], [8, 5], [8, 6]] }], []);
+ok(!!c10, "escenario de cuarteto de doses construido");
+if (c10){
+  var res10 = C.move({ board: C.cloneBoard(c10.pre), score: 0, doses: 0 }, "row", 8, 1);
+  var a10 = res10.steps[1].merges[0].at;
+  var exp10 = 0;
+  for (var dr10 = -2; dr10 <= 2; dr10++) for (var dc10 = -2; dc10 <= 2; dc10++){
+    if (dr10 === 0 && dc10 === 0) continue;
+    if (a10[0] + dr10 >= 0 && a10[0] + dr10 < N && a10[1] + dc10 >= 0 && a10[1] + dc10 < N) exp10++;
+  }
+  ok(res10.steps[res10.steps.length - 1].impact.length === exp10, "cuarteto: onda con techo en radio 2 (" + exp10 + " casillas)");
+}
+
 console.log("\n" + passed + " ok, " + failed + " fallos");
 process.exit(failed ? 1 : 0);

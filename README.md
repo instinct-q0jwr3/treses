@@ -31,7 +31,7 @@ Una cuadrícula de 10 × 10 en la que hay que **cazar doses**.
 
 - **Arrastra una fila o columna una casilla**: lo que sale por un lado vuelve por el otro. Al soltar, los iguales que se toquen se juntan en su suma, sin límite (3 + 3 = 6).
 - **Fusionar doses suma** la suma; fusionar cualquier otro número **resta 1 punto**.
-- Cada fusión suelta una **onda**: baja 1 a las casillas de alrededor de la suma (cuantas más fichas se junten, más lejos llega). La onda nunca fusiona, pero puede preparar la jugada siguiente o estropearla.
+- Cada fusión suelta una **onda**: baja 1 a las casillas de alrededor de la suma (cuantas más fichas se junten, más lejos llega, hasta dos anillos). La onda nunca fusiona, pero puede preparar la jugada siguiente o estropearla.
 - Sin reloj, con deshacer y récord guardado. Salvaguarda: si una cascada no se estabilizara, la jugada se revierte entera y se avisa.
 
 ## Desarrollo
