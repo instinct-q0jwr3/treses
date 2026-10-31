@@ -33,7 +33,14 @@
   }
   .p2048 .a{background:#eee4da;} .p2048 .b{background:#ede0c8;}
   .p2048 .c{background:#f2b179; color:#f9f6f2;} .p2048 .d{background:#f59563; color:#f9f6f2;}
-  .pprisma{background:#14141c;}
+  .pdesborde{background:#14141c; display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:9px;}
+  .pdesborde span{
+    border-radius:5px; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:.85rem; color:#fff; aspect-ratio:1;
+  }
+  .pdesborde .t1{background:#38bdf8;} .pdesborde .t2{background:#34d399;}
+  .pdesborde .t3{background:#fbbf24; color:#1c1c28;} .pdesborde .t4{background:#fb923c;}
+  .pdesborde .t5{background:#f87171;} .pdesborde .t6{background:#e879f9;}
   .meta h2{margin:0 0 3px; font-size:1.25rem;}
   .meta p{margin:0; font-size:.85rem; color:var(--muted); line-height:1.4;}
   .foot{font-size:.78rem; color:var(--muted); text-align:center; margin-top:18px;}
@@ -52,20 +59,15 @@
     </div>
   </a>
 
-  <a class="card" href="prisma.html">
-    <div class="preview pprisma">
-      <svg viewBox="0 0 76 76" width="76" height="76" aria-hidden="true">
-        <circle cx="22" cy="22" r="13" fill="#ff6b6b"/>
-        <text x="22" y="27" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" stroke="rgba(0,0,0,.4)" stroke-width="2.5" paint-order="stroke">1</text>
-        <polygon points="54,12 66,34 42,34" fill="#fbbf24"/>
-        <text x="54" y="30" text-anchor="middle" font-size="12" font-weight="800" fill="#fff" stroke="rgba(0,0,0,.4)" stroke-width="2.5" paint-order="stroke">2</text>
-        <polygon points="38,42 40.9,48.6 48.1,49.2 42.6,53.8 44.3,60.8 38,57.2 31.7,60.8 33.4,53.8 27.9,49.2 35.1,48.6" fill="#34d399"/>
-        <text x="38" y="55" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" stroke="rgba(0,0,0,.4)" stroke-width="2.5" paint-order="stroke">3</text>
-      </svg>
+  <a class="card" href="desborde.html">
+    <div class="preview pdesborde">
+      <span class="t1">2</span><span class="t2">3</span><span class="t3">1</span>
+      <span class="t4">4</span><span class="t5">6</span><span class="t1">1</span>
+      <span class="t6">2</span><span class="t3">3</span><span class="t2">5</span>
     </div>
     <div class="meta">
-      <h2>Prisma</h2>
-      <p>Encadena con un dedo colores, n&uacute;meros y formas en el panal. Sin reloj.</p>
+      <h2>Desborde</h2>
+      <p>Mueve filas y columnas con las flechas: lo que sale por un lado vuelve por el otro. Junta iguales y logra la ficha m&aacute;s alta.</p>
     </div>
   </a>
 

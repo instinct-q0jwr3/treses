@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Desborde</title>
+<style>
+  :root{
+    --bg:#14141c; --panel:#20202e; --panel2:#262638; --line:#32324a;
+    --ink:#f4f4f8; --muted:#9a9ab8; --accent:#fbbf24;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(94vw,430px); padding:max(10px, env(safe-area-inset-top)) 0 22px;}
+  .back{
+    display:inline-block; color:var(--muted); text-decoration:none; font-size:.9rem;
+    padding:6px 0 2px;
+  }
+  .back:active{color:var(--ink);}
+  h1{font-size:2rem; margin:2px 0 2px; letter-spacing:.5px;}
+  .sub{color:var(--muted); margin:0 0 12px; font-size:.85rem; line-height:1.45;}
+  .topbar{display:flex; gap:8px; align-items:stretch; margin-bottom:10px;}
+  .box{
+    flex:1; background:var(--panel); border-radius:10px; padding:6px 10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .box .label{font-size:.6rem; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:700;}
+  .box .val{font-size:1.25rem; font-weight:800; line-height:1.2; color:#fff;}
+  .btn{
+    background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px;
+    padding:0 12px; font-size:.82rem; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .btn:active{transform:scale(.96);}
+  .btn[disabled]{opacity:.35;}
+  .queuebar{
+    display:flex; align-items:center; gap:8px; margin-bottom:12px;
+    background:var(--panel); border-radius:10px; padding:7px 12px;
+  }
+  .queuebar .label{font-size:.68rem; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:700;}
+  .chip{
+    width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:.95rem;
+  }
+  .grid{
+    display:grid; grid-template-columns:repeat(7,1fr); gap:6px;
+    background:var(--panel); border-radius:14px; padding:6px;
+    touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  }
+  .arr{
+    border:none; background:transparent; color:var(--muted); border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(.8rem,3.4vw,1.05rem); cursor:pointer; padding:0; aspect-ratio:1;
+  }
+  .arr:active{background:var(--panel2); color:#fff; transform:scale(.92);}
+  .arr.hl{color:var(--accent); animation:arrflash .45s ease;}
+  @keyframes arrflash{0%{background:var(--panel2);}100%{background:transparent;}}
+  .corner{aspect-ratio:1;}
+  .tile{
+    aspect-ratio:1; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:clamp(1.15rem,6vw,1.9rem); color:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.25);
+  }
+  .tile.dark{color:#1c1c28; text-shadow:none;}
+  .tile.two{font-size:clamp(1rem,5.2vw,1.6rem);}
+  .tile.three{font-size:clamp(.8rem,4.2vw,1.25rem);}
+  .tile.hl{outline:2px solid rgba(251,191,36,.55); outline-offset:-2px;}
+  .tile.pop{animation:pop .22s ease;}
+  @keyframes pop{0%{transform:scale(.6);}60%{transform:scale(1.12);}100%{transform:scale(1);}}
+  .tile.new{animation:fadein .3s ease;}
+  @keyframes fadein{0%{opacity:0; transform:scale(.5);}100%{opacity:1; transform:scale(1);}}
+  .howto{
+    margin-top:14px; color:var(--muted); font-size:.8rem; line-height:1.55;
+    background:var(--panel); border-radius:10px; padding:10px 12px;
+  }
+  .howto b{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">&lsaquo; Juegos</a>
+  <h1>Desborde</h1>
+  <p class="sub">Desplaza filas y columnas: lo que sale por un lado vuelve por el otro.</p>
+
+  <div class="topbar">
+    <div class="box"><span class="label">Puntos</span><span class="val" id="score">0</span></div>
+    <div class="box"><span class="label">Mejor ficha</span><span class="val" id="best">0</span></div>
+    <button class="btn" id="undo">Deshacer</button>
+    <button class="btn" id="new">Nueva</button>
+  </div>
+
+  <div class="queuebar">
+    <span class="label">Siguientes</span>
+    <span id="queue"></span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="howto">
+    <b>C&oacute;mo se juega:</b> toca una flecha para mover esa fila o columna una posici&oacute;n.
+    Si quedan <b>n&uacute;meros iguales seguidos</b>, se juntan en uno solo con su suma
+    (2 + 2 = 4, 2 + 2 + 2 = 6). Los huecos se rellenan con las piezas siguientes.
+    Sin reloj: consigue la ficha m&aacute;s alta que puedas.
+  </div>
+</div>
+
+<script src="desborde-core.js"></script>
+<script>
+(function(){
+  "use strict";
+  var Core = window.DesbordeCore;
+  var N = Core.N;
+
+  var state = null, best = 0, history = [];
+
+  var gridEl = document.getElementById("grid");
+  var scoreEl = document.getElementById("score");
+  var bestEl = document.getElementById("best");
+  var queueEl = document.getElementById("queue");
+  var undoBtn = document.getElementById("undo");
+  var newBtn = document.getElementById("new");
+
+  function colorFor(v){
+    switch(v){
+      case 1: return "#38bdf8";
+      case 2: return "#34d399";
+      case 3: return "#fbbf24";
+      case 4: return "#fb923c";
+      case 5: return "#f87171";
+      case 6: return "#e879f9";
+      case 7: return "#a78bfa";
+      case 8: return "#60a5fa";
+      case 9: return "#f472b6";
+      case 10: return "#fde047";
+      case 11: return "#4ade80";
+      default: return v >= 12 ? "#f8fafc" : "#94a3b8";
+    }
+  }
+  function darkText(v){ return v === 3 || v === 10 || v === 11 || v >= 12; }
+
+  function validSave(s){
+    return s && Array.isArray(s.board) && s.board.length === N &&
+      s.board.every(function(r){ return Array.isArray(r) && r.length === N && r.every(function(v){ return Number.isInteger(v) && v >= 1; }); }) &&
+      Array.isArray(s.queue) && s.queue.length === Core.QUEUE_LEN &&
+      Number.isInteger(s.score);
+  }
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(Core.SAVE_KEY);
+      if (raw){
+        var s = JSON.parse(raw);
+        if (validSave(s)){
+          state = { board: s.board, queue: s.queue, score: s.score };
+          best = Number.isInteger(s.best) ? s.best : Core.maxTile(s.board);
+          return;
+        }
+      }
+    }catch(e){}
+    state = Core.newGame();
+    best = Core.maxTile(state.board);
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(Core.SAVE_KEY, JSON.stringify({
+        board: state.board, queue: state.queue, score: state.score, best: best
+      }));
+    }catch(e){}
+  }
+
+  function render(fx){
+    scoreEl.textContent = state.score;
+    bestEl.textContent = best;
+    undoBtn.disabled = history.length === 0;
+
+    queueEl.innerHTML = "";
+    state.queue.forEach(function(v){
+      var c = document.createElement("span");
+      c.className = "chip" + (darkText(v) ? " dark" : "");
+      c.style.background = colorFor(v);
+      c.textContent = v;
+      queueEl.appendChild(c);
+    });
+
+    gridEl.innerHTML = "";
+    var mergeMap = {}, freshMap = {};
+    if (fx){
+      (fx.merges || []).forEach(function(p){ mergeMap[p[0] + "," + p[1]] = true; });
+      (fx.fresh || []).forEach(function(p){ freshMap[p[0] + "," + p[1]] = true; });
+    }
+
+    for (var gr = 0; gr < N + 2; gr++){
+      for (var gc = 0; gc < N + 2; gc++){
+        var cell;
+        var topArr = gr === 0 && gc >= 1 && gc <= N;
+        var botArr = gr === N + 1 && gc >= 1 && gc <= N;
+        var leftArr = gc === 0 && gr >= 1 && gr <= N;
+        var rightArr = gc === N + 1 && gr >= 1 && gr <= N;
+        if (topArr || botArr || leftArr || rightArr){
+          cell = document.createElement("button");
+          cell.className = "arr";
+          var type, index, dir, glyph;
+          if (topArr){ type = "col"; index = gc - 1; dir = 1; glyph = "\u25BC"; }
+          else if (botArr){ type = "col"; index = gc - 1; dir = -1; glyph = "\u25B2"; }
+          else if (leftArr){ type = "row"; index = gr - 1; dir = 1; glyph = "\u25B6"; }
+          else { type = "row"; index = gr - 1; dir = -1; glyph = "\u25C0"; }
+          cell.textContent = glyph;
+          cell.setAttribute("aria-label",
+            (type === "row" ? "Mover fila " + (index + 1) : "Mover columna " + (index + 1)) +
+            (dir === 1 ? (type === "row" ? " a la derecha" : " hacia abajo") : (type === "row" ? " a la izquierda" : " hacia arriba")));
+          if (fx && fx.type === type && fx.index === index) cell.classList.add("hl");
+          (function(t, i, d){
+            cell.addEventListener("click", function(){ doMove(t, i, d); });
+          })(type, index, dir);
+        } else if (gr >= 1 && gr <= N && gc >= 1 && gc <= N){
+          var r = gr - 1, c = gc - 1;
+          var v = state.board[r][c];
+          cell = document.createElement("div");
+          cell.className = "tile" + (darkText(v) ? " dark" : "") +
+            (v >= 100 ? " three" : v >= 10 ? " two" : "");
+          cell.style.background = colorFor(v);
+          cell.textContent = v;
+          var k = r + "," + c;
+          if (mergeMap[k]) cell.classList.add("pop");
+          else if (freshMap[k]) cell.classList.add("new");
+          else if (fx && ((fx.type === "row" && fx.index === r) || (fx.type === "col" && fx.index === c))) cell.classList.add("hl");
+        } else {
+          cell = document.createElement("div");
+          cell.className = "corner";
+        }
+        gridEl.appendChild(cell);
+      }
+    }
+  }
+
+  function doMove(type, index, dir){
+    history.push({ board: Core.cloneBoard(state.board), queue: state.queue.slice(), score: state.score });
+    if (history.length > 100) history.shift();
+    var res = Core.move(state, type, index, dir);
+    state = res.state;
+    var m = Core.maxTile(state.board);
+    if (m > best) best = m;
+    save();
+    render(res);
+  }
+
+  undoBtn.addEventListener("click", function(){
+    var prev = history.pop();
+    if (!prev) return;
+    state = prev;
+    save();
+    render();
+  });
+
+  newBtn.addEventListener("click", function(){
+    state = Core.newGame();
+    history = [];
+    save();
+    render();
+  });
+
+  load();
+  save();
+  render();
+})();
+</script>
+</body>
+</html>
