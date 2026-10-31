@@ -24,7 +24,7 @@
   "use strict";
 
   var N = 4;
-  var SAVE_KEY = "filas2048-save-v1";
+  var SAVE_KEY = "filas2048-save-v2"; // v1: balance antiguo (relleno de todos los huecos); se migra con aviso
 
   function spawnStart(rng){ return rng() < 0.9 ? 2 : 4; }
 

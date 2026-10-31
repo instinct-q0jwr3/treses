@@ -272,6 +272,7 @@
       Core.hasDuplicate(s.board); // si se quedo sin duplicados, la partida ya habia terminado
   }
 
+  var legacyMsg = "";
   function load(){
     try{
       var raw = localStorage.getItem(Core.SAVE_KEY);
@@ -282,6 +283,17 @@
           best = Number.isInteger(s.best) ? s.best : 0;
           return;
         }
+      }
+      // Partida guardada con el balance antiguo (relleno de todos los huecos): no se
+      // carga, para no seguir con un tablero inflado. Se avisa y se conserva su record
+      // solo en el mensaje: la escala de puntos nueva no es comparable.
+      var old = localStorage.getItem("filas2048-save-v1");
+      if (old){
+        var o = JSON.parse(old);
+        var oldBest = o && Number.isInteger(o.best) && o.best > 0 ? o.best : null;
+        legacyMsg = "Balance ajustado: partida nueva. El relleno ahora es de una ficha por jugada." +
+          (oldBest ? " (Record del balance antiguo: " + oldBest + ")" : "");
+        localStorage.removeItem("filas2048-save-v1");
       }
     }catch(e){}
     state = Core.newGame();
@@ -505,6 +517,7 @@
   load();
   save();
   buildBoard();
+  if (legacyMsg) showMsg(legacyMsg);
 })();
 </script>
 </body>
