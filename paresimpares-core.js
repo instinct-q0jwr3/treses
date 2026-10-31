@@ -41,6 +41,16 @@
       }
       board.push(row);
     }
+    // Sin 3s el tablero viviria entre 1 y 2 para siempre: garantizamos al menos dos.
+    for (var t = 0; t < 8; t++){
+      var threes = 0, cells = [];
+      for (var r2 = 0; r2 < N; r2++) for (var c2 = 0; c2 < N; c2++){
+        if ((r2 + c2) % 2 === phase){ cells.push([r2, c2]); if (board[r2][c2] === 3) threes++; }
+      }
+      if (threes >= 2) break;
+      var pick = cells[Math.floor(rng() * cells.length)];
+      board[pick[0]][pick[1]] = 3;
+    }
     return { board: board, score: 0, movesLeft: MOVES };
   }
 

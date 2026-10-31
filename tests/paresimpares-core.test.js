@@ -154,5 +154,15 @@ for (let seed = 1; seed <= 200; seed++){
   }
 }
 
+// 12. El tablero inicial siempre trae al menos dos 3 (sin 3s no hay 6 y el juego queda plano).
+{
+  for (let seed = 100; seed < 400; seed++){
+    const g = C.newGame(mulberry32(seed));
+    const threes = g.board.flat().filter(v => v === 3).length;
+    ok(threes >= 2, "al menos dos 3 al inicio (semilla " + seed + ", vistos " + threes + ")");
+  }
+}
+
 if (failures){ console.error(failures + " fallos"); process.exit(1); }
 console.log("OK - tests de paresimpares-core");
+
