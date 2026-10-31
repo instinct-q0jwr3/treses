@@ -16,12 +16,13 @@ El clásico puzle: desliza las fichas y junta dos iguales para sumarlas (2 + 2 =
 
 ### Desborde
 
-Una cuadrícula de 5 × 5 con números y flechas en los bordes.
+Una cuadrícula de 5 × 5 con números.
 
-- Toca una flecha para desplazar esa fila o columna una posición: **lo que sale por un lado vuelve por el otro**.
-- Si en la fila o columna que has movido quedan **números iguales seguidos**, se juntan en uno solo con su suma: 2 + 2 = 4, 2 + 2 + 2 = 6.
-- Los huecos se rellenan con las piezas siguientes, que ves arriba para planear.
+- **Arrastra una fila o columna una casilla** (o toca sus flechas): lo que sale por un lado vuelve por el otro. Mientras arrastras no pasa nada; la jugada se fija al soltar.
+- Al soltar, los **números iguales que queden tocándose** (en fila o en columna) se juntan en su suma: 2 + 2 = 4, 2 + 2 + 2 = 6. La suma se queda en la línea que moviste.
+- Cada hueco se rellena con un **1** y las nuevas coincidencias se juntan en **oleadas**, una tras otra, hasta que el tablero queda estable; solo entonces puedes mover otra vez.
 - Sin reloj y con botón de deshacer. La meta es conseguir la ficha más alta.
+- Salvaguarda: si una cascada no se estabilizara, la jugada se revierte entera y se avisa.
 
 ## Desarrollo
 
