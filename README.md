@@ -19,8 +19,8 @@ El clásico puzle: desliza las fichas y junta dos iguales para sumarlas (2 + 2 =
 Una cuadrícula de 5 × 5 con números.
 
 - **Arrastra una fila o columna una casilla** (o toca sus flechas): lo que sale por un lado vuelve por el otro. Mientras arrastras no pasa nada; la jugada se fija al soltar.
-- Al soltar, los **números iguales que queden tocándose** (en fila o en columna) se juntan en su suma: 2 + 2 = 4, 2 + 2 + 2 = 6. La suma se queda en la línea que moviste.
-- Las fichas van del 1 al 7 **en ciclo**: si una suma pasa de 7, la ficha vuelve a empezar (7 + 1 = 1), aunque los puntos cuentan con la suma completa.
+- Al soltar, los **números iguales que queden tocándose** (en fila o en columna) se juntan en su suma: 2 + 2 = 4, 2 + 2 + 2 = 6. La primera suma se queda en la línea que moviste; en las oleadas siguientes, en la casilla de más arriba a la izquierda del grupo.
+- Las fichas van del 1 al 7 **en ciclo**: si una suma pasa de 7, la ficha vuelve a empezar (4 + 4 = 8 → 1), aunque los puntos cuentan con la suma completa.
 - Cada hueco se rellena con el **valor más pequeño que no repita vecino** y las nuevas coincidencias se juntan en **oleadas**, una tras otra, hasta que el tablero queda estable; solo entonces puedes mover otra vez.
 - Sin reloj y con botón de deshacer. La meta es sumar puntos encadenando oleadas; el marcador de «Mejor jugada» guarda tu jugada más puntuable.
 - Salvaguarda: si una cascada no se estabilizara, la jugada se revierte entera y se avisa.
