@@ -41,6 +41,13 @@
   .pdesborde .t1{background:#38bdf8;} .pdesborde .t2{background:#34d399;}
   .pdesborde .t3{background:#fbbf24; color:#1c1c28;} .pdesborde .t4{background:#fb923c;}
   .pdesborde .t5{background:#f87171;} .pdesborde .t6{background:#e879f9;}
+  .pimpacto{background:#14141c; display:grid; grid-template-columns:repeat(4,1fr); gap:3px; padding:8px;}
+  .pimpacto span{
+    border-radius:4px; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:.7rem; color:#fff; aspect-ratio:1;
+  }
+  .pimpacto .i1{background:#38bdf8;} .pimpacto .i2{background:#fbbf24; color:#1c1c28;}
+  .pimpacto .i3{background:#34d399;} .pimpacto .i4{background:#fb923c;}
   .meta h2{margin:0 0 3px; font-size:1.25rem;}
   .meta p{margin:0; font-size:.85rem; color:var(--muted); line-height:1.4;}
   .foot{font-size:.78rem; color:var(--muted); text-align:center; margin-top:18px;}
@@ -68,6 +75,19 @@
     <div class="meta">
       <h2>Desborde</h2>
       <p>Arrastra filas y columnas: lo que sale por un lado vuelve por el otro. Junta iguales que se toquen, encadena oleadas y suma puntos.</p>
+    </div>
+  </a>
+
+  <a class="card" href="impacto.html">
+    <div class="preview pimpacto">
+      <span class="i1">1</span><span class="i3">3</span><span class="i2">2</span><span class="i1">1</span>
+      <span class="i4">4</span><span class="i2">2</span><span class="i2">2</span><span class="i3">3</span>
+      <span class="i1">1</span><span class="i4">4</span><span class="i3">3</span><span class="i1">1</span>
+      <span class="i3">3</span><span class="i1">1</span><span class="i4">4</span><span class="i2">2</span>
+    </div>
+    <div class="meta">
+      <h2>Impacto</h2>
+      <p>Caza doses: son lo &uacute;nico que suma. Cada fusi&oacute;n suelta una onda que baja 1 a su alrededor.</p>
     </div>
   </a>
 

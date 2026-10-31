@@ -1,6 +1,6 @@
-# Juegos: 2048 y Desborde
+# Juegos: 2048, Desborde e Impacto
 
-Dos puzles para jugar en el navegador, con selector al entrar. Sin cuentas, sin anuncios, sin conexión necesaria tras la primera carga.
+Tres puzles para jugar en el navegador, con selector al entrar. Sin cuentas, sin anuncios, sin conexión necesaria tras la primera carga.
 
 ## Jugar
 
@@ -25,9 +25,20 @@ Una cuadrícula de 5 × 5 con números.
 - Sin reloj y con botón de deshacer. La meta es sumar puntos encadenando oleadas; el marcador de «Mejor jugada» guarda tu jugada más puntuable.
 - Salvaguarda: si una cascada no se estabilizara, la jugada se revierte entera y se avisa.
 
+### Impacto
+
+Una cuadrícula de 10 × 10 en la que hay que **cazar doses**.
+
+- **Arrastra una fila o columna una casilla**: lo que sale por un lado vuelve por el otro. Al soltar, los iguales que se toquen se juntan en su suma, sin límite (3 + 3 = 6).
+- **Fusionar doses suma** la suma; fusionar cualquier otro número **resta 1 punto**.
+- Cada fusión suelta una **onda**: baja 1 a las casillas de alrededor de la suma (cuantas más fichas se junten, más lejos llega). La onda nunca fusiona, pero puede preparar la jugada siguiente o estropearla.
+- Sin reloj, con deshacer y récord guardado. Salvaguarda: si una cascada no se estabilizara, la jugada se revierte entera y se avisa.
+
 ## Desarrollo
 
 - `index.html`: selector de juegos.
 - `2048.html`: juego 2048 (autocontenido).
 - `desborde.html` + `desborde-core.js`: juego Desborde; la lógica pura está en `desborde-core.js`.
+- `impacto.html` + `impacto-core.js`: juego Impacto; la lógica pura está en `impacto-core.js`.
 - `tests/desborde-core.test.js`: tests de la lógica de Desborde, sin dependencias: `node tests/desborde-core.test.js`.
+- `tests/impacto-core.test.js`: tests de la lógica de Impacto: `node tests/impacto-core.test.js`.
