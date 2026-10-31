@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>2048 por filas</title>
+<style>
+  :root{
+    --bg:#14141c; --panel:#20202e; --panel2:#262638; --line:#32324a;
+    --ink:#f4f4f8; --muted:#9a9ab8; --accent:#fbbf24; --danger:#f87171;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(94vw,430px); padding:max(10px, env(safe-area-inset-top)) 0 22px;}
+  .back{display:inline-block; color:var(--muted); text-decoration:none; font-size:.9rem; padding:6px 0 2px;}
+  .back:active{color:var(--ink);}
+  h1{font-size:2rem; margin:2px 0 2px; letter-spacing:.5px;}
+  .sub{color:var(--muted); margin:0 0 12px; font-size:.85rem; line-height:1.45;}
+  .topbar{display:flex; gap:8px; align-items:stretch; margin-bottom:6px;}
+  .box{
+    flex:1; background:var(--panel); border-radius:10px; padding:6px 10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .box .label{font-size:.6rem; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:700;}
+  .box .val{font-size:1.25rem; font-weight:800; line-height:1.2; color:#fff;}
+  .btn{
+    background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px;
+    padding:0 12px; font-size:.82rem; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .btn:active{transform:scale(.96);}
+  .btn[disabled]{opacity:.35;}
+  #msg{
+    min-height:20px; font-size:.8rem; color:var(--accent); font-weight:700;
+    display:flex; align-items:center; padding:0 2px; margin-bottom:4px;
+  }
+  #board{position:relative; width:100%; aspect-ratio:1;}
+  .arr{
+    position:absolute; border:none; background:transparent; color:var(--muted); border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(.8rem,3.4vw,1.05rem); cursor:pointer; padding:0;
+  }
+  .arr:active{background:var(--panel2); color:#fff; transform:scale(.92);}
+  .arr.hl{color:var(--accent);}
+  #tilesLayer{position:absolute; overflow:hidden; touch-action:none; user-select:none; -webkit-user-select:none;}
+  .tile{
+    position:absolute; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:clamp(1.15rem,6vw,1.9rem); color:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.25); cursor:grab;
+  }
+  .tile.dark{color:#1c1c28; text-shadow:none;}
+  .tile.two{font-size:clamp(1rem,5.2vw,1.6rem);}
+  .tile.three{font-size:clamp(.8rem,4.2vw,1.25rem);}
+  .tile.hlm{outline:2px solid rgba(251,191,36,.6); outline-offset:-2px;}
+  .tile.hlw{outline:2px dashed rgba(251,191,36,.45); outline-offset:-3px;}
+  .mini{
+    position:absolute; top:-5px; right:-5px; background:var(--bg); color:var(--accent);
+    border:1.5px solid var(--accent); border-radius:9px; font-size:.58rem; font-weight:800;
+    line-height:1; padding:2px 4px; pointer-events:none;
+  }
+  .mini2{top:auto; right:auto; bottom:-5px; left:-5px; color:var(--muted); border-color:var(--muted);}
+  .tile.pop{animation:pop .22s ease;}
+  @keyframes pop{0%{transform:scale(.6);}60%{transform:scale(1.12);}100%{transform:scale(1);}}
+  .tile.new{animation:fadein .3s ease;}
+  @keyframes fadein{0%{opacity:0; transform:scale(.5);}100%{opacity:1; transform:scale(1);}}
+  #over{
+    position:absolute; inset:0; display:none; z-index:5;
+    background:rgba(20,20,28,.82); border-radius:12px;
+    flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center;
+  }
+  #over.show{display:flex;}
+  #over .big{font-size:1.3rem; font-weight:800; padding:0 18px; line-height:1.35;}
+  #over .pts{color:var(--muted); font-size:.9rem;}
+  #over .btn{font-size:1rem; padding:10px 18px;}
+  .howto{
+    margin-top:14px; color:var(--muted); font-size:.8rem; line-height:1.55;
+    background:var(--panel); border-radius:10px; padding:10px 12px;
+  }
+  .howto b{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">&lsaquo; Juegos</a>
+  <h1>2048 por filas</h1>
+  <p class="sub">Un 2048 en el que solo se mueve la fila o columna que elijas. Pierdes cuando no queden dos n&uacute;meros iguales en todo el tablero.</p>
+
+  <div class="topbar">
+    <div class="box"><span class="label">Puntos</span><span class="val" id="score">0</span></div>
+    <div class="box"><span class="label">R&eacute;cord</span><span class="val" id="best">0</span></div>
+    <button class="btn" id="undo">Deshacer</button>
+    <button class="btn" id="new">Nueva</button>
+  </div>
+
+  <div id="msg"></div>
+  <div id="board">
+    <div id="over">
+      <div class="big">No quedan dos n&uacute;meros iguales.<br>Fin de la partida.</div>
+      <div class="pts" id="overPts"></div>
+      <button class="btn" id="again">Jugar otra vez</button>
+    </div>
+  </div>
+
+  <div class="howto">
+    <b>C&oacute;mo se juega:</b> arrastra una fila o columna <b>una casilla</b> (o toca sus flechas):
+    lo que sale por un lado vuelve por el otro. Al soltar, los <b>iguales que queden toc&aacute;ndose</b>
+    se juntan por parejas en su doble (2 + 2 = 4, 4 + 4 = 8), en la casilla de m&aacute;s arriba a la
+    izquierda de cada pareja; si un grupo tiene tres, se juntan dos y queda una.
+    Cada hueco se rellena con el <b>n&uacute;mero m&aacute;s peque&ntilde;o que no est&eacute; ya en el tablero</b>:
+    el relleno nunca te salva; que queden dos iguales depende solo de tus fusiones.
+    Un movimiento sin fusi&oacute;n solo desplaza, sirve para preparar.
+    <b>Antes de soltar</b>, si mantienes el arrastre m&aacute;s de media casilla, ver&aacute;s qu&eacute;
+    parejas se juntar&iacute;an (<b>=4</b>), qu&eacute; n&uacute;meros nacer&iacute;an en los huecos (<b>+2</b>)
+    y cu&aacute;nto sumar&iacute;a la jugada. <b>Pierdes cuando ya no queden dos n&uacute;meros iguales</b>
+    en todo el tablero, aunque est&eacute;n separados. Sin reloj, con deshacer.
+  </div>
+</div>
+
+<script src="2048filas-core.js"></script>
+<script>
+(function(){
+  "use strict";
+  var Core = window.Filas2048Core;
+  var N = Core.N, GAP = 6;
+
+  var state = null, best = 0, history = [], busy = false, over = false;
+
+  var boardEl = document.getElementById("board");
+  var scoreEl = document.getElementById("score");
+  var bestEl = document.getElementById("best");
+  var msgEl = document.getElementById("msg");
+  var undoBtn = document.getElementById("undo");
+  var newBtn = document.getElementById("new");
+  var overEl = document.getElementById("over");
+  var overPts = document.getElementById("overPts");
+  var againBtn = document.getElementById("again");
+
+  var cell = 0, step = 0, layer = null, tiles = [], ghosts = [];
+
+  function colorFor(v){
+    switch(v){
+      case 2: return "#38bdf8";
+      case 4: return "#34d399";
+      case 8: return "#fbbf24";
+      case 16: return "#fb923c";
+      case 32: return "#f87171";
+      case 64: return "#e879f9";
+      case 128: return "#a78bfa";
+      case 256: return "#60a5fa";
+      case 512: return "#facc15";
+      case 1024: return "#fb7185";
+      case 2048: return "#fde047";
+      default: return "#94a3b8";
+    }
+  }
+  function darkText(v){ return v === 8 || v === 512 || v === 2048; }
+
+  function pos(i){ return GAP + i * step; }
+
+  function buildBoard(){
+    previewBadges = []; previewKey = null;
+    boardEl.querySelectorAll(".arr, #tilesLayer").forEach(function(el){ el.remove(); });
+    var W = boardEl.clientWidth;
+    cell = (W - (N + 3) * GAP) / (N + 2);
+    step = cell + GAP;
+
+    var arrows = [
+      { row: 0, c: 1, span: N, type: "col", dir: 1, glyph: "▼" },
+      { row: N + 1, c: 1, span: N, type: "col", dir: -1, glyph: "▲" },
+      { row: 1, c: 0, span: N, type: "row", dir: 1, glyph: "▶" },
+      { row: 1, c: N + 1, span: N, type: "row", dir: -1, glyph: "◀" }
+    ];
+    arrows.forEach(function(a){
+      for (var i = 0; i < a.span; i++){
+        var b = document.createElement("button");
+        b.className = "arr";
+        var gr = a.row === 0 || a.row === N + 1 ? a.row : a.row + i;
+        var gc = a.c === 0 || a.c === N + 1 ? a.c : a.c + i;
+        b.style.left = pos(gc) + "px"; b.style.top = pos(gr) + "px";
+        b.style.width = cell + "px"; b.style.height = cell + "px";
+        var type = a.type, index = a.type === "col" ? gc - 1 : gr - 1, dir = a.dir;
+        b.textContent = a.glyph;
+        b.setAttribute("aria-label",
+          (type === "row" ? "Mover fila " + (index + 1) : "Mover columna " + (index + 1)) +
+          (dir === 1 ? (type === "row" ? " a la derecha" : " hacia abajo") : (type === "row" ? " a la izquierda" : " hacia arriba")));
+        b.dataset.ltype = type; b.dataset.lindex = index; b.dataset.ldir = dir;
+        (function(t, i2, d){ b.addEventListener("click", function(){ doMove(t, i2, d); }); })(type, index, dir);
+        boardEl.appendChild(b);
+      }
+    });
+
+    layer = document.createElement("div");
+    layer.id = "tilesLayer";
+    layer.style.left = pos(1) + "px"; layer.style.top = pos(1) + "px";
+    layer.style.width = (N * cell + (N - 1) * GAP) + "px";
+    layer.style.height = layer.style.width;
+    boardEl.appendChild(layer);
+
+    tiles = []; ghosts = [];
+    for (var r = 0; r < N; r++){
+      var rowEls = [];
+      for (var c = 0; c < N; c++){
+        var t = document.createElement("div");
+        t.className = "tile";
+        t.style.left = c * step + "px"; t.style.top = r * step + "px";
+        t.style.width = cell + "px"; t.style.height = cell + "px";
+        t.dataset.r = r; t.dataset.c = c;
+        layer.appendChild(t);
+        rowEls.push(t);
+      }
+      tiles.push(rowEls);
+    }
+    layer.addEventListener("pointerdown", onDown);
+    render();
+  }
+
+  function paintTile(el, v, cls){
+    el.textContent = v;
+    el.style.background = colorFor(v);
+    var size = String(v).length >= 4 ? " three" : String(v).length === 3 ? " two" : "";
+    el.className = "tile" + (darkText(v) ? " dark" : "") + size + (cls ? " " + cls : "");
+  }
+
+  // fx: {hl:[[r,c]], pop:[[r,c]], fresh:[[r,c]], moved:{type,index}}
+  function render(fx){
+    scoreEl.textContent = state.score;
+    bestEl.textContent = best;
+    undoBtn.disabled = history.length === 0 || busy;
+    var hl = {}, pop = {}, fresh = {};
+    if (fx){
+      (fx.hl || []).forEach(function(p){ hl[p[0] + "," + p[1]] = true; });
+      (fx.pop || []).forEach(function(p){ pop[p[0] + "," + p[1]] = true; });
+      (fx.fresh || []).forEach(function(p){ fresh[p[0] + "," + p[1]] = true; });
+    }
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++){
+      var k = r + "," + c;
+      paintTile(tiles[r][c], state.board[r][c], pop[k] ? "pop" : fresh[k] ? "new" : hl[k] ? "hlm" : "");
+    }
+    var arrs = boardEl.querySelectorAll(".arr");
+    for (var i = 0; i < arrs.length; i++){
+      var a = arrs[i];
+      var on = fx && fx.moved && a.dataset.ltype === fx.moved.type && +a.dataset.lindex === fx.moved.index;
+      a.classList.toggle("hl", !!on);
+    }
+  }
+
+  function showMsg(text, ms){
+    msgEl.style.color = "";
+    msgEl.textContent = text;
+    if (ms) setTimeout(function(){ if (msgEl.textContent === text) msgEl.textContent = ""; }, ms);
+  }
+
+  function validSave(s){
+    return s && Array.isArray(s.board) && s.board.length === N &&
+      s.board.every(function(r){ return Array.isArray(r) && r.length === N && r.every(function(v){
+        return Number.isInteger(v) && v >= 2 && (v & (v - 1)) === 0; }); }) &&
+      Number.isInteger(s.score) &&
+      Core.hasDuplicate(s.board); // si se quedo sin duplicados, la partida ya habia terminado
+  }
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(Core.SAVE_KEY);
+      if (raw){
+        var s = JSON.parse(raw);
+        if (validSave(s)){
+          state = { board: s.board, score: s.score };
+          best = Number.isInteger(s.best) ? s.best : 0;
+          return;
+        }
+      }
+    }catch(e){}
+    state = Core.newGame();
+    best = 0;
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(Core.SAVE_KEY, JSON.stringify({ board: state.board, score: state.score, best: best }));
+    }catch(e){}
+  }
+
+  var sleep = function(ms){ return new Promise(function(res){ setTimeout(res, ms); }); };
+
+  function finishIfOver(gameOver){
+    if (!gameOver) return;
+    over = true;
+    overPts.textContent = "Puntos: " + state.score + " · Récord: " + best;
+    overEl.classList.add("show");
+  }
+
+  async function doMove(type, index, dir){
+    if (busy || over) return;
+    busy = true;
+    var prev = { board: Core.cloneBoard(state.board), score: state.score, best: best };
+    var res = Core.move(state, type, index, dir);
+    history.push(prev);
+    if (history.length > 100) history.shift();
+    if (res.gained > 0 && state.score + res.gained > best) best = state.score + res.gained;
+
+    render({ moved: { type: type, index: index } });
+    await sleep(200);
+    if (res.merges.length){
+      var cells = [];
+      res.merges.forEach(function(m){ cells = cells.concat(m.cells); });
+      state.board = res.shifted; // tablero desplazado con las parejas marcadas
+      render({ hl: cells });
+      showMsg("+" + res.gained);
+      await sleep(380);
+    }
+    state = res.state;
+    save();
+    render({ pop: res.merges.map(function(m){ return m.at; }), fresh: res.fills.map(function(f){ return f.at; }) });
+    await sleep(res.merges.length ? 350 : 120);
+    msgEl.textContent = "";
+    busy = false;
+    render();
+    finishIfOver(res.gameOver);
+  }
+
+  // ---- Arrastre de una casilla con previsualizacion y desborde ----
+  var drag = null;
+  var previewKey = null, previewBadges = [];
+
+  function clearPreviewFx(){
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++)
+      tiles[r][c].classList.remove("hlm", "hlw");
+    previewBadges.forEach(function(b){ b.remove(); });
+    previewBadges = [];
+    msgEl.style.color = "";
+    msgEl.textContent = "";
+    previewKey = null;
+  }
+
+  // Previsualizacion de la jugada: al pasar de media casilla (zona en la que soltar
+  // fija la jugada), simula el movimiento con la misma Core.move y muestra lo que
+  // pasaria: parejas que se juntan, valor resultante, numeros nuevos en los huecos
+  // y puntos. Todo es determinista: lo que se ve es lo que pasara.
+  function updatePreview(){
+    var d = drag;
+    if (!d || !d.axis || Math.abs(d.delta) <= step / 2){
+      if (previewKey) clearPreviewFx();
+      return;
+    }
+    var dir = d.delta > 0 ? 1 : -1;
+    var key = d.axis + ":" + d.index + ":" + dir;
+    if (key === previewKey) return;
+    clearPreviewFx();
+    previewKey = key;
+    var res = Core.move(state, d.axis, d.index, dir);
+    if (!res.gained){
+      msgEl.textContent = "Al soltar: sin fusión, solo desplaza.";
+      return;
+    }
+    if (res.gameOver){
+      msgEl.style.color = "#f87171";
+      msgEl.textContent = "Al soltar: +" + res.gained + " pero te quedas sin iguales: ¡fin!";
+    } else {
+      msgEl.textContent = "Al soltar: +" + res.gained;
+    }
+    res.merges.forEach(function(m){
+      m.cells.forEach(function(p){ tiles[p[0]][p[1]].classList.add("hlm"); });
+      var badge = document.createElement("span");
+      badge.className = "mini";
+      badge.textContent = "=" + m.tile;
+      tiles[m.at[0]][m.at[1]].appendChild(badge);
+      previewBadges.push(badge);
+    });
+    res.fills.forEach(function(f){
+      var badge = document.createElement("span");
+      badge.className = "mini mini2";
+      badge.textContent = "+" + f.value;
+      tiles[f.at[0]][f.at[1]].appendChild(badge);
+      previewBadges.push(badge);
+    });
+  }
+
+  function clearGhosts(){
+    ghosts.forEach(function(g){ g.remove(); });
+    ghosts = [];
+  }
+  function lineTiles(d){
+    var out = [];
+    for (var i = 0; i < N; i++) out.push(d.axis === "row" ? tiles[d.index][i] : tiles[i][d.index]);
+    return out;
+  }
+  function applyDrag(delta){
+    var d = drag;
+    lineTiles(d).forEach(function(t){
+      t.style.transition = "none";
+      t.style.transform = d.axis === "row" ? "translateX(" + delta + "px)" : "translateY(" + delta + "px)";
+    });
+    clearGhosts();
+    if (Math.abs(delta) > 2){
+      var g = document.createElement("div");
+      g.className = "tile";
+      var v;
+      if (d.axis === "row"){
+        v = delta > 0 ? state.board[d.index][N - 1] : state.board[d.index][0];
+        g.style.left = (delta > 0 ? -step + delta : N * step + delta - GAP) + "px";
+        g.style.top = d.index * step + "px";
+      } else {
+        v = delta > 0 ? state.board[N - 1][d.index] : state.board[0][d.index];
+        g.style.left = d.index * step + "px";
+        g.style.top = (delta > 0 ? -step + delta : N * step + delta - GAP) + "px";
+      }
+      g.style.width = cell + "px"; g.style.height = cell + "px";
+      paintTile(g, v, "");
+      layer.appendChild(g);
+      ghosts.push(g);
+    }
+  }
+  function settleDrag(d, commit){
+    var target = commit ? (d.delta > 0 ? step : -step) : 0;
+    lineTiles(d).forEach(function(t){
+      t.style.transition = "transform .15s ease";
+      t.style.transform = d.axis === "row" ? "translateX(" + target + "px)" : "translateY(" + target + "px)";
+    });
+    clearGhosts();
+    setTimeout(function(){
+      lineTiles(d).forEach(function(t){ t.style.transition = "none"; t.style.transform = ""; });
+    }, 160);
+  }
+  function onDown(e){
+    if (busy || over) return;
+    var t = e.target.closest(".tile");
+    if (!t || ghosts.indexOf(t) >= 0) return;
+    drag = { r: +t.dataset.r, c: +t.dataset.c, x0: e.clientX, y0: e.clientY, axis: null, index: -1, delta: 0 };
+    try{ layer.setPointerCapture(e.pointerId); }catch(err){}
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+    window.addEventListener("pointercancel", onUp, { once: true });
+  }
+  function onMove(e){
+    if (!drag) return;
+    var dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    if (!drag.axis){
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dx) >= Math.abs(dy)){ drag.axis = "row"; drag.index = drag.r; }
+      else { drag.axis = "col"; drag.index = drag.c; }
+    }
+    var delta = drag.axis === "row" ? dx : dy;
+    delta = Math.max(-step, Math.min(step, delta));
+    drag.delta = delta;
+    applyDrag(delta);
+    updatePreview();
+    e.preventDefault();
+  }
+  function onUp(){
+    window.removeEventListener("pointermove", onMove);
+    if (!drag) return;
+    var d = drag; drag = null;
+    clearPreviewFx();
+    if (!d.axis){ clearGhosts(); return; }
+    var commit = Math.abs(d.delta) > step / 2;
+    settleDrag(d, commit);
+    if (commit){
+      var dir = d.delta > 0 ? 1 : -1;
+      setTimeout(function(){ doMove(d.axis, d.index, dir); }, 160);
+    }
+  }
+
+  undoBtn.addEventListener("click", function(){
+    if (busy) return;
+    var prev = history.pop();
+    if (!prev) return;
+    state = { board: prev.board, score: prev.score };
+    best = prev.best;
+    over = false;
+    overEl.classList.remove("show");
+    save();
+    render();
+  });
+
+  function newGame(){
+    if (busy) return;
+    state = Core.newGame();
+    best = best; // el record se conserva entre partidas
+    history = [];
+    over = false;
+    overEl.classList.remove("show");
+    msgEl.textContent = "";
+    save();
+    render();
+  }
+  newBtn.addEventListener("click", newGame);
+  againBtn.addEventListener("click", newGame);
+
+  window.addEventListener("resize", function(){ if (!drag) buildBoard(); });
+
+  load();
+  save();
+  buildBoard();
+})();
+</script>
+</body>
+</html>

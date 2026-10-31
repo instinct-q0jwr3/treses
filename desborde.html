@@ -57,6 +57,13 @@
   .tile.two{font-size:clamp(1rem,5.2vw,1.6rem);}
   .tile.three{font-size:clamp(.8rem,4.2vw,1.25rem);}
   .tile.hlm{outline:2px solid rgba(251,191,36,.6); outline-offset:-2px;}
+  .tile.hlw{outline:2px dashed rgba(251,191,36,.45); outline-offset:-3px;}
+  .mini{
+    position:absolute; top:-5px; right:-5px; background:var(--bg); color:var(--accent);
+    border:1.5px solid var(--accent); border-radius:9px; font-size:.58rem; font-weight:800;
+    line-height:1; padding:2px 4px; pointer-events:none;
+  }
+  .mini2{top:auto; right:auto; bottom:-5px; left:-5px; color:var(--muted); border-color:var(--muted);}
   .tile.pop{animation:pop .22s ease;}
   @keyframes pop{0%{transform:scale(.6);}60%{transform:scale(1.12);}100%{transform:scale(1);}}
   .tile.new{animation:fadein .3s ease;}
@@ -92,7 +99,11 @@
     izquierda del grupo. Las fichas van del 1 al 7 y dan la vuelta: si una suma pasa de 7,
     vuelve a empezar (4 + 4 = 8 &rarr; 1), aunque los puntos cuentan enteros. Cada hueco se
     rellena con el valor m&aacute;s peque&ntilde;o que no repita vecino, y las nuevas coincidencias
-    se juntan en <b>oleadas</b>. Sin reloj: suma puntos y encadena oleadas.
+    se juntan en <b>oleadas</b>. <b>Antes de soltar</b>, si mantienes el arrastre m&aacute;s de
+    media casilla, ver&aacute;s qu&eacute; grupos se juntar&iacute;an, con qu&eacute; valor quedar&iacute;an
+    (<b>=4</b>), qu&eacute; n&uacute;meros nuevos nacer&iacute;an en los huecos (<b>+2</b>) y cu&aacute;nto
+    sumar&iacute;a la jugada; suelta para confirmar o vuelve atr&aacute;s para cancelar.
+    Sin reloj: suma puntos y encadena oleadas.
   </div>
 </div>
 
@@ -131,6 +142,7 @@
   function pos(i){ return GAP + i * step; }
 
   function buildBoard(){
+    previewBadges = []; previewKey = null;
     boardEl.innerHTML = "";
     var W = boardEl.clientWidth;
     cell = (W - 8 * GAP) / 7;
@@ -295,6 +307,71 @@
 
   // ---- Arrastre de una casilla con previsualizacion y desborde ----
   var drag = null;
+  var previewKey = null, previewBadges = [];
+
+  function clearPreviewFx(){
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++)
+      tiles[r][c].classList.remove("hlm", "hlw");
+    previewBadges.forEach(function(b){ b.remove(); });
+    previewBadges = [];
+    msgEl.style.color = "";
+    msgEl.textContent = "";
+    previewKey = null;
+  }
+
+  // Previsualizacion de la jugada: al pasar de media casilla (zona en la que soltar
+  // fija la jugada), simula el movimiento completo y muestra lo que pasaria:
+  // grupos de la oleada 1 con su valor resultante, celdas de oleadas posteriores
+  // y los puntos totales. No cambia reglas: usa la misma Core.move que la jugada.
+  function updatePreview(){
+    var d = drag;
+    if (!d || !d.axis || Math.abs(d.delta) <= step / 2){
+      if (previewKey) clearPreviewFx();
+      return;
+    }
+    var dir = d.delta > 0 ? 1 : -1;
+    var key = d.axis + ":" + d.index + ":" + dir;
+    if (key === previewKey) return;
+    clearPreviewFx();
+    previewKey = key;
+    var res = Core.move(state, d.axis, d.index, dir);
+    if (res.reverted){
+      msgEl.style.color = "#f87171";
+      msgEl.textContent = "Al soltar: no se estabiliza; la jugada se revertir\u00eda.";
+      return;
+    }
+    if (!res.gained){
+      msgEl.textContent = "Al soltar: sin fusiones.";
+      return;
+    }
+    msgEl.textContent = "Al soltar: +" + res.gained +
+      (res.waves > 1 ? " \u00b7 " + res.waves + " oleadas" : " \u00b7 1 oleada");
+    var step1 = res.steps[1];
+    step1.merges.forEach(function(m){
+      m.cells.forEach(function(p){ tiles[p[0]][p[1]].classList.add("hlm"); });
+      var badge = document.createElement("span");
+      badge.className = "mini";
+      badge.textContent = "=" + m.tile;
+      tiles[m.at[0]][m.at[1]].appendChild(badge);
+      previewBadges.push(badge);
+    });
+    // Spawn visible: valor con el que se rellenara cada hueco de la oleada 1
+    (step1.fills || []).forEach(function(f){
+      var badge = document.createElement("span");
+      badge.className = "mini mini2";
+      badge.textContent = "+" + f.value;
+      tiles[f.at[0]][f.at[1]].appendChild(badge);
+      previewBadges.push(badge);
+    });
+    for (var i = 2; i < res.steps.length; i++){
+      res.steps[i].merges.forEach(function(m){
+        m.cells.forEach(function(p){
+          var t = tiles[p[0]][p[1]];
+          if (!t.classList.contains("hlm")) t.classList.add("hlw");
+        });
+      });
+    }
+  }
 
   function clearGhosts(){
     ghosts.forEach(function(g){ g.remove(); });
@@ -364,12 +441,14 @@
     delta = Math.max(-step, Math.min(step, delta));
     drag.delta = delta;
     applyDrag(delta);
+    updatePreview();
     e.preventDefault();
   }
   function onUp(){
     window.removeEventListener("pointermove", onMove);
     if (!drag) return;
     var d = drag; drag = null;
+    clearPreviewFx();
     if (!d.axis){ clearGhosts(); return; }
     var commit = Math.abs(d.delta) > step / 2;
     settleDrag(d, commit);

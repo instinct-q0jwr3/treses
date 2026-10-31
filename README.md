@@ -1,4 +1,4 @@
-# Juegos: 2048, Desborde e Impacto
+# Juegos: 2048, Desborde y 2048 por filas
 
 Tres puzles para jugar en el navegador, con selector al entrar. Sin cuentas, sin anuncios, sin conexión necesaria tras la primera carga.
 
@@ -25,20 +25,22 @@ Una cuadrícula de 5 × 5 con números.
 - Sin reloj y con botón de deshacer. La meta es sumar puntos encadenando oleadas; el marcador de «Mejor jugada» guarda tu jugada más puntuable.
 - Salvaguarda: si una cascada no se estabilizara, la jugada se revierte entera y se avisa.
 
-### Impacto
+### 2048 por filas
 
-Una cuadrícula de 10 × 10 en la que hay que **cazar doses**.
+Un 2048 en el que **solo se mueve la fila o columna que elijas**, una casilla, con reintegro circular.
 
-- **Arrastra una fila o columna una casilla**: lo que sale por un lado vuelve por el otro. Al soltar, los iguales que se toquen se juntan en su suma, sin límite (3 + 3 = 6).
-- **Fusionar doses suma** la suma; fusionar cualquier otro número **resta 1 punto**.
-- Cada fusión suelta una **onda**: baja 1 a las casillas de alrededor de la suma (cuantas más fichas se junten, más lejos llega, hasta dos anillos). La onda nunca fusiona, pero puede preparar la jugada siguiente o estropearla.
-- Sin reloj, con deshacer y récord guardado. Salvaguarda: si una cascada no se estabilizara, la jugada se revierte entera y se avisa.
+- Al soltar, los **iguales que queden tocándose** se juntan por **parejas** en su doble (2 + 2 = 4, 4 + 4 = 8), en la casilla de más arriba a la izquierda de cada pareja; si un grupo tiene tres, se juntan dos y queda una.
+- Cada hueco se rellena con el **número más pequeño que no esté ya en el tablero**: el relleno nunca crea duplicados; mantener viva la partida depende solo de tus fusiones.
+- Un movimiento sin fusión es legal y solo desplaza: sirve para preparar.
+- **Pierdes cuando ya no quedan dos números iguales en todo el tablero**, aunque estén separados.
+- Antes de soltar, mantén el arrastre más de media casilla para **ver qué pasaría**: parejas que se juntarían, valor resultante, números nuevos en los huecos y puntos. Todo es determinista: lo que ves es lo que pasa.
+- Sin reloj, con deshacer y récord guardado.
 
 ## Desarrollo
 
 - `index.html`: selector de juegos.
 - `2048.html`: juego 2048 (autocontenido).
 - `desborde.html` + `desborde-core.js`: juego Desborde; la lógica pura está en `desborde-core.js`.
-- `impacto.html` + `impacto-core.js`: juego Impacto; la lógica pura está en `impacto-core.js`.
+- `2048filas.html` + `2048filas-core.js`: juego 2048 por filas; la lógica pura está en `2048filas-core.js`.
 - `tests/desborde-core.test.js`: tests de la lógica de Desborde, sin dependencias: `node tests/desborde-core.test.js`.
-- `tests/impacto-core.test.js`: tests de la lógica de Impacto: `node tests/impacto-core.test.js`.
+- `tests/2048filas-core.test.js`: tests de la lógica de 2048 por filas: `node tests/2048filas-core.test.js`.
