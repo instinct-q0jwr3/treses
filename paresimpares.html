@@ -278,6 +278,7 @@
     if (!gameOver) return;
     over = true;
     if (state.score > best) best = state.score;
+    bestEl.textContent = best;
     save();
     overPts.textContent = "Puntos: " + state.score + " · Récord: " + best;
     overEl.classList.add("show");
