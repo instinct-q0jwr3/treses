@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>El inversor a ciegas</title>
+<style>
+  :root{
+    --bg:#faf8ef; --board:#bbada0; --ink:#776e65; --accent:#edcf72;
+    --line-you:#4a7fbf; --line-mkt:#bbada0; --good:#5b8c5a; --bad:#b05a4a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(92vw,430px); padding:max(12px, env(safe-area-inset-top)) 0 28px;}
+  .top{display:flex; align-items:center; gap:10px; margin:8px 0 6px;}
+  .back{color:var(--ink); text-decoration:none; font-size:1.5rem; line-height:1; padding:4px 6px;}
+  h1{font-size:1.5rem; margin:0; letter-spacing:.3px; flex:1;}
+  .mes{background:var(--board); color:#f9f6f2; border-radius:10px; padding:6px 10px; font-weight:800; font-size:.85rem;}
+  .card{background:#fff; border:2px solid #e6ddc9; border-radius:14px; padding:14px; margin:10px 0;}
+  .muted{font-size:.8rem; color:#a79b8d;}
+  .nums{display:flex; gap:8px; margin:10px 0;}
+  .num{flex:1; background:#fff; border:2px solid #e6ddc9; border-radius:12px; padding:8px 10px; text-align:center;}
+  .num .v{font-size:1.05rem; font-weight:800;}
+  .num .l{font-size:.68rem; color:#a79b8d; margin-top:2px;}
+  .seg{display:flex; gap:6px; margin:8px 0 4px;}
+  .seg button{
+    flex:1; border:2px solid #d9cdb4; background:#fff; color:var(--ink);
+    border-radius:10px; padding:10px 0; font-size:.85rem; font-weight:700;
+  }
+  .seg button.on{background:var(--accent); border-color:var(--accent); color:#5c5340;}
+  .big{
+    width:100%; border:0; border-radius:12px; padding:14px; margin-top:10px;
+    background:var(--board); color:#f9f6f2; font-size:1.05rem; font-weight:800;
+  }
+  .big:active{opacity:.85;}
+  .big.alt{background:#e6ddc9; color:var(--ink);}
+  .evento{background:#f5ecd7; border-radius:12px; padding:12px; font-size:.9rem; line-height:1.45; margin-top:10px;}
+  .evento b{display:block; font-size:.72rem; color:#a78d4a; margin-bottom:4px; letter-spacing:.4px;}
+  .sube{color:var(--good); font-weight:800;} .baja{color:var(--bad); font-weight:800;}
+  table{width:100%; border-collapse:collapse; font-size:.85rem; margin-top:6px;}
+  th,td{padding:7px 6px; text-align:right; border-bottom:1px solid #eee4da;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font-size:.7rem; color:#a79b8d; font-weight:700;}
+  ul.notas{font-size:.8rem; line-height:1.5; padding-left:18px; margin:8px 0;}
+  ul.notas li{margin-bottom:6px;}
+  .recap{font-size:.78rem; line-height:1.5;}
+  .recap div{padding:5px 0; border-bottom:1px dashed #e6ddc9;}
+  .recap .m{font-weight:800; display:inline-block; min-width:74px;}
+  a{color:var(--line-you);}
+  .banner{background:var(--accent); color:#5c5340; border-radius:12px; padding:10px 12px; font-size:.82rem; font-weight:700; margin:10px 0;}
+  #chart{width:100%; height:auto; display:block;}
+  .leyenda{display:flex; gap:14px; font-size:.72rem; color:#a79b8d; margin-top:4px;}
+  .punto{display:inline-block; width:10px; height:10px; border-radius:5px; margin-right:4px; vertical-align:-1px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- INTRO -->
+  <div id="intro">
+    <div class="top">
+      <a class="back" href="index.html">‹</a>
+      <h1>El inversor a ciegas</h1>
+    </div>
+    <div id="replayBanner"></div>
+    <div class="card">
+      <p style="margin:0 0 8px">Te dejo <b>10.000 € ficticios</b> y una <b>época real de bolsa</b>, con los nombres y las fechas tapados. Durante <b>24 meses</b> decides cuánto mantener en un <b>fondo índice</b> que sigue al mercado y cuánto en <b>efectivo</b>.</p>
+      <p style="margin:0" class="muted">Solo verás lo que se sabía hasta ese momento. Nada de futuro: cada decisión se aplica al mes que viene, que aún no conoces.</p>
+    </div>
+    <div class="card">
+      <ul class="notas" style="margin:0">
+        <li>Mover dinero cuesta un <b>0,5&nbsp;%</b> <span class="muted">(parámetro del juego, no una tarifa real)</span>.</li>
+        <li>En el <b>mes 12</b> tendrás que sacar <b>1.500&nbsp;€</b> para un gasto previsto: conviene tener algo en efectivo.</li>
+        <li>Meta: terminar con <b>al menos 7.500&nbsp;€</b>.</li>
+      </ul>
+    </div>
+    <button class="big" id="btnEmpezar">Empezar la partida</button>
+    <p class="muted" style="text-align:center">Juego educativo con datos históricos reales y dinero ficticio. No es una recomendación de inversión.</p>
+  </div>
+
+  <!-- JUEGO -->
+  <div id="juego" style="display:none">
+    <div class="top">
+      <a class="back" href="index.html">‹</a>
+      <h1>El inversor a ciegas</h1>
+      <span class="mes" id="lblMes"></span>
+    </div>
+    <div class="card">
+      <svg id="chart" viewBox="0 0 340 170" role="img" aria-label="Evolución de tu cartera y del mercado"></svg>
+      <div class="leyenda">
+        <span><span class="punto" style="background:var(--line-you)"></span>Tu cartera</span>
+        <span><span class="punto" style="background:var(--line-mkt)"></span>El mercado (mismo punto de partida)</span>
+      </div>
+    </div>
+    <div class="nums">
+      <div class="num"><div class="v" id="vTotal"></div><div class="l">Tu cartera</div></div>
+      <div class="num"><div class="v" id="vIndice"></div><div class="l">En el fondo índice</div></div>
+      <div class="num"><div class="v" id="vCash"></div><div class="l">En efectivo</div></div>
+    </div>
+
+    <div id="faseDecide">
+      <div class="card">
+        <div style="font-weight:800; font-size:.9rem; margin-bottom:2px">¿Cuánto dejas en el fondo índice para el mes que viene?</div>
+        <div class="muted">El resto queda en efectivo. Tu decisión se aplica antes de conocer el mes.</div>
+        <div class="seg" id="segAlloc"></div>
+        <div class="muted" id="lblCoste" style="min-height:1.1em"></div>
+        <div class="banner" id="avisoGasto" style="display:none"></div>
+      </div>
+      <button class="big" id="btnAvanzar">Avanzar un mes</button>
+    </div>
+
+    <div id="faseResultado" style="display:none">
+      <div class="card">
+        <div id="resMes" style="font-size:.95rem; line-height:1.5"></div>
+        <div class="evento"><b>LO QUE PASÓ ESE MES</b><span id="resEvento"></span></div>
+      </div>
+      <button class="big" id="btnSiguiente">Decidir el mes siguiente</button>
+    </div>
+  </div>
+
+  <!-- REVELACIÓN -->
+  <div id="reveal" style="display:none">
+    <div class="top">
+      <a class="back" href="index.html">‹</a>
+      <h1>Fin de la partida</h1>
+    </div>
+    <div id="replayBanner2"></div>
+    <div class="card">
+      <div style="font-weight:800; font-size:1.05rem" id="revTitulo"></div>
+      <p style="font-size:.88rem; line-height:1.5" id="revTexto"></p>
+    </div>
+    <div class="card">
+      <div class="nums" style="margin-top:0">
+        <div class="num"><div class="v" id="revFinal"></div><div class="l">Valor final</div></div>
+        <div class="num"><div class="v" id="revRent"></div><div class="l">Rentabilidad</div></div>
+        <div class="num"><div class="v" id="revDD"></div><div class="l">Caída máxima</div></div>
+      </div>
+      <div class="nums">
+        <div class="num"><div class="v" id="revComis"></div><div class="l">Comisiones pagadas</div></div>
+        <div class="num"><div class="v" id="revGasto"></div><div class="l">Gasto del mes 12</div></div>
+        <div class="num"><div class="v" id="revMeta"></div><div class="l">Meta 7.500 €</div></div>
+      </div>
+      <div class="muted" id="revResumen"></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:800; font-size:.9rem">Comparación en las mismas condiciones</div>
+      <table>
+        <tr><th></th><th>Final</th><th>Rentab.</th><th>Caída máx.</th></tr>
+        <tr><td><b>Tú</b></td><td id="cTuF"></td><td id="cTuR"></td><td id="cTuD"></td></tr>
+        <tr><td>Comprar y mantener</td><td id="cBhF"></td><td id="cBhR"></td><td id="cBhD"></td></tr>
+        <tr><td>Todo en efectivo</td><td id="cAcF"></td><td id="cAcR"></td><td id="cAcD"></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div style="font-weight:800; font-size:.9rem; margin-bottom:4px">Para pensar</div>
+      <ul class="notas">
+        <li>En esta época comprar y mantener salió mal; en otras épocas pasó justo lo contrario. No había forma de saberlo por adelantado.</li>
+        <li>Tu resultado no mide la calidad de tus decisiones: un buen resultado puede ser suerte y uno malo, mala suerte. Lo que sí controlas es cuánto arriesgas, cuánto te cuesta moverte y si tienes efectivo cuando lo necesitas.</li>
+        <li>Ninguna caída tiene garantizada la recuperación, ni ninguna subida la continuación.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div style="font-weight:800; font-size:.9rem; margin-bottom:4px">Qué pasó cada mes</div>
+      <div class="recap" id="revRecap"></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:800; font-size:.9rem; margin-bottom:4px">De dónde salen los datos</div>
+      <ul class="notas" id="revFuentes"></ul>
+      <ul class="notas">
+        <li>Índice de precios con cierres mensuales, <b>sin dividendos</b> y en dólares; los euros de la partida son ficticios. Con dividendos la rentabilidad real habría sido algo mayor, y el cambio de divisa también habría influido.</li>
+        <li>La caída máxima usa cierres de fin de mes; dentro del mes pudo ser mayor.</li>
+      </ul>
+      <p class="muted" style="margin:0">Juego educativo con dinero ficticio. No es una recomendación de inversión ni una promesa de rentabilidad.</p>
+    </div>
+    <button class="big" id="btnRejugar">Probar otra estrategia</button>
+    <button class="big alt" id="btnMenu">Volver al menú de juegos</button>
+  </div>
+
+</div>
+<script src="bolsa-engine.js"></script>
+<script>
+(function(){
+  var D = BolsaEngine.DATA;
+  var SAVE_KEY = 'bolsa-save-v1';
+  var save = { plays: 0, best: null };
+  try { var s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && typeof s.plays === 'number') save = s; } catch (e) {}
+  var experimento = save.plays > 0;
+
+  var decisions = [];      // fracción en índice elegida para cada mes
+  var mes = 1;             // mes que se está decidiendo (1..24)
+  var sel = 0.5;           // selección actual
+  var sim = null;          // simulación de los meses ya jugados
+
+  function fmt(n){ return n.toLocaleString('es-ES', {maximumFractionDigits:0}) + ' €'; }
+  function pct(x){ var s = (x*100).toLocaleString('es-ES',{maximumFractionDigits:1}); return (x>=0?'+':'') + s + ' %'; }
+  function pctAbs(x){ return (x*100).toLocaleString('es-ES',{maximumFractionDigits:1}) + ' %'; }
+  function $(id){ return document.getElementById(id); }
+
+  function simActual(){
+    if (decisions.length === 0) return null;
+    return BolsaEngine.simulate(decisions);
+  }
+  function estado(){
+    var r = simActual();
+    if (!r) return { cash: D.startCapital, idx: 0, value: D.startCapital, totalFees: 0 };
+    var last = r.rows[r.rows.length - 1];
+    return { cash: last.cash, idx: last.idx, value: last.value, totalFees: r.totalFees };
+  }
+
+  function pintarChart(){
+    var svg = $('chart');
+    var W = 340, H = 170, P = 8;
+    var jugados = decisions.length;
+    var mkt = [D.startCapital];
+    for (var i = 1; i <= jugados; i++) mkt.push(D.startCapital * D.closes[i] / D.closes[0]);
+    var you = [D.startCapital];
+    var r = simActual();
+    if (r) for (i = 0; i < r.rows.length; i++) you.push(r.rows[i].value);
+    var all = mkt.concat(you);
+    var mn = Math.min.apply(null, all), mx = Math.max.apply(null, all);
+    if (mx - mn < 1) { mx += 1; mn -= 1; }
+    function X(i){ return P + i * (W - 2*P) / D.nMonths; }
+    function Y(v){ return H - P - (v - mn) * (H - 2*P) / (mx - mn); }
+    function path(arr){
+      var d = '';
+      for (var i = 0; i < arr.length; i++) d += (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(arr[i]).toFixed(1);
+      return d;
+    }
+    var html = '';
+    html += '<line x1="'+P+'" y1="'+Y(D.startCapital)+'" x2="'+(W-P)+'" y2="'+Y(D.startCapital)+'" stroke="#e6ddc9" stroke-dasharray="4 4"/>';
+    html += '<path d="'+path(mkt)+'" fill="none" stroke="#bbada0" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+    html += '<path d="'+path(you)+'" fill="none" stroke="#4a7fbf" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>';
+    html += '<circle cx="'+X(you.length-1)+'" cy="'+Y(you[you.length-1])+'" r="4" fill="#4a7fbf"/>';
+    html += '<text x="'+P+'" y="'+(Y(mx)+3)+'" font-size="9" fill="#a79b8d" text-anchor="start" dy="-3">'+fmt(mx)+'</text>';
+    html += '<text x="'+P+'" y="'+(Y(mn)-3)+'" font-size="9" fill="#a79b8d" text-anchor="start" dy="10">'+fmt(mn)+'</text>';
+    svg.innerHTML = html;
+  }
+
+  function pintarNumeros(){
+    var e = estado();
+    $('vTotal').textContent = fmt(e.value);
+    $('vIndice').textContent = fmt(e.idx);
+    $('vCash').textContent = fmt(e.cash);
+    $('lblMes').textContent = 'Mes ' + Math.min(mes, D.nMonths) + ' / ' + D.nMonths;
+  }
+
+  function pintarSeg(){
+    var seg = $('segAlloc');
+    seg.innerHTML = '';
+    [0, 0.25, 0.5, 0.75, 1].forEach(function(v){
+      var b = document.createElement('button');
+      b.textContent = (v*100) + ' %';
+      if (Math.abs(v - sel) < 1e-9) b.className = 'on';
+      b.addEventListener('click', function(){ sel = v; pintarSeg(); });
+      seg.appendChild(b);
+    });
+    var e = estado();
+    var V = e.value;
+    var movido = Math.abs(sel * V - e.idx);
+    var coste = movido * D.feeRate;
+    $('lblCoste').textContent = movido < 1
+      ? 'Sin movimiento: mantienes tu reparto.'
+      : 'Moverías ' + fmt(movido) + ' · coste ' + coste.toLocaleString('es-ES',{maximumFractionDigits:2}) + ' €';
+    var av = $('avisoGasto');
+    if (mes === D.withdrawalMonth) {
+      av.style.display = 'block';
+      av.textContent = 'Este mes toca el gasto previsto de 1.500 €: sale primero del efectivo y, si falta, vendiendo fondo con coste.';
+    } else av.style.display = 'none';
+  }
+
+  function mostrar(fase){
+    $('faseDecide').style.display = fase === 'decide' ? 'block' : 'none';
+    $('faseResultado').style.display = fase === 'resultado' ? 'block' : 'none';
+  }
+
+  function pintarResultado(){
+    var r = simActual();
+    var last = r.rows[r.rows.length - 1];
+    var anterior = r.rows.length > 1 ? r.rows[r.rows.length - 2].value : D.startCapital;
+    var cambio = last.value / (anterior - last.withdrawn) - 1;
+    var cls = last.marketRet >= 0 ? 'sube' : 'baja';
+    var html = 'El mercado hizo un <span class="'+cls+'">'+pct(last.marketRet)+'</span> este mes. ';
+    html += 'Tu cartera: <b>' + fmt(last.value) + '</b>';
+    if (last.withdrawn > 0) html += ' <span class="muted">(tras sacar ' + fmt(last.withdrawn) + ' del gasto previsto)</span>';
+    if (last.fee > 0.005) html += '<br><span class="muted">Comisiones del mes: ' + last.fee.toLocaleString('es-ES',{maximumFractionDigits:2}) + ' €</span>';
+    $('resMes').innerHTML = html;
+    $('resEvento').textContent = D.events[last.t - 1];
+    $('btnSiguiente').textContent = last.t >= D.nMonths ? 'Revelar qué época era' : 'Decidir el mes siguiente';
+  }
+
+  function fila(idF, idR, idD, s){
+    $(idF).textContent = fmt(s.final);
+    $(idR).textContent = pct(s.totalReturn);
+    $(idD).textContent = pctAbs(s.maxDrawdown);
+  }
+
+  function pintarReveal(){
+    var r = simActual();
+    var bh = BolsaEngine.buyAndHold();
+    var ac = BolsaEngine.allCash();
+    $('revTitulo').textContent = D.reveal.title;
+    $('revTexto').textContent = D.reveal.text;
+    $('revFinal').textContent = fmt(r.final);
+    $('revRent').textContent = pct(r.totalReturn);
+    $('revDD').textContent = pctAbs(r.maxDrawdown);
+    $('revComis').textContent = r.totalFees.toLocaleString('es-ES',{maximumFractionDigits:2}) + ' €';
+    $('revGasto').textContent = fmt(r.withdrawnTotal);
+    var m = $('revMeta');
+    m.textContent = r.goalMet ? 'Cumplida' : 'No cumplida';
+    m.style.color = r.goalMet ? 'var(--good)' : 'var(--bad)';
+    var movs = 0, suma = 0;
+    for (var i = 0; i < decisions.length; i++) {
+      suma += decisions[i];
+      if (i > 0 && Math.abs(decisions[i] - decisions[i-1]) > 1e-9) movs++;
+    }
+    var medio = Math.round(suma / decisions.length * 100);
+    $('revResumen').textContent = 'Tus decisiones: de media llevaste un ' + medio + ' % en el fondo índice y cambiaste el reparto ' + movs + ' veces.';
+    fila('cTuF','cTuR','cTuD', r);
+    fila('cBhF','cBhR','cBhD', bh);
+    fila('cAcF','cAcR','cAcD', ac);
+    var rec = '';
+    for (i = 0; i < D.nMonths; i++) {
+      rec += '<div><span class="m">' + D.realMonths[i] + '</span><span class="' + (r.rows[i].marketRet >= 0 ? 'sube' : 'baja') + '">' + pct(r.rows[i].marketRet) + '</span> · ' + D.events[i] + '</div>';
+    }
+    $('revRecap').innerHTML = rec;
+    var fu = '';
+    D.reveal.sources.forEach(function(s){ fu += '<li><a href="' + s.url + '" target="_blank" rel="noopener">' + s.label + '</a></li>'; });
+    $('revFuentes').innerHTML = fu;
+    if (experimento) {
+      $('replayBanner2').innerHTML = '<div class="banner">Modo experimento: ya conocías la época, así que este resultado no cuenta como prueba a ciegas.</div>';
+    }
+  }
+
+  function guardar(){
+    save.plays += 1;
+    var r = simActual();
+    if (save.best === null || r.final > save.best) save.best = r.final;
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+    experimento = true;
+  }
+
+  $('btnEmpezar').addEventListener('click', function(){
+    $('intro').style.display = 'none';
+    $('juego').style.display = 'block';
+    decisions = []; mes = 1; sel = 0.5;
+    pintarChart(); pintarNumeros(); pintarSeg(); mostrar('decide');
+    window.scrollTo(0, 0);
+  });
+
+  $('btnAvanzar').addEventListener('click', function(){
+    decisions.push(sel);
+    mes = decisions.length + 1;
+    pintarChart(); pintarNumeros(); pintarResultado(); mostrar('resultado');
+    window.scrollTo(0, 0);
+  });
+
+  $('btnSiguiente').addEventListener('click', function(){
+    if (decisions.length >= D.nMonths) {
+      guardar();
+      $('juego').style.display = 'none';
+      $('reveal').style.display = 'block';
+      pintarReveal();
+      window.scrollTo(0, 0);
+    } else {
+      sel = decisions[decisions.length - 1];
+      pintarSeg(); mostrar('decide');
+      window.scrollTo(0, 0);
+    }
+  });
+
+  $('btnRejugar').addEventListener('click', function(){
+    $('reveal').style.display = 'none';
+    $('juego').style.display = 'block';
+    decisions = []; mes = 1; sel = 0.5;
+    pintarChart(); pintarNumeros(); pintarSeg(); mostrar('decide');
+    window.scrollTo(0, 0);
+  });
+
+  $('btnMenu').addEventListener('click', function(){ location.href = 'index.html'; });
+
+  if (experimento) {
+    $('replayBanner').innerHTML = '<div class="banner">Ya completaste esta época. Puedes rejugar en modo experimento para probar estrategias, pero ya no cuenta como prueba a ciegas. Mejor resultado hasta ahora: ' + fmt(save.best || 0) + '.</div>';
+    $('btnEmpezar').textContent = 'Jugar de nuevo (modo experimento)';
+  }
+})();
+</script>
+</body>
+</html>
