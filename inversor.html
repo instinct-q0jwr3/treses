@@ -223,7 +223,8 @@
     if (r) for (i = 0; i < r.rows.length; i++) you.push(r.rows[i].value);
     var all = mkt.concat(you);
     var mn = Math.min.apply(null, all), mx = Math.max.apply(null, all);
-    if (mx - mn < 1) { mx += 1; mn -= 1; }
+    var pad = Math.max((mx - mn) * 0.1, D.startCapital * 0.06);
+    mn -= pad; mx += pad;
     function X(i){ return P + i * (W - 2*P) / D.nMonths; }
     function Y(v){ return H - P - (v - mn) * (H - 2*P) / (mx - mn); }
     function path(arr){
