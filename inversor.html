@@ -374,7 +374,7 @@
       var d = opt.decisions[i];
       var cuando = D.realMonths[i] + (j > i ? ' - ' + D.realMonths[j] : '');
       var que = d === 0 ? 'todo en efectivo' : (d === 1 ? 'todo en el fondo' : Math.round(d * 100) + ' % en el fondo');
-      html += '<div><span class="m">' + cuando + '</span>' + que + '</div>';
+      html += '<div><span class="m">' + cuando + '</span> ' + que + '</div>';
       i = j + 1;
     }
     $('optTramos').innerHTML = html;
