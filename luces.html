@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Apagar las luces</title>
+<style>
+  :root{
+    --bg:#faf8ef; --board:#bbada0; --cell:#cdc1b4;
+    --ink:#776e65; --accent:#edcf72;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(92vw,430px); padding:max(12px, env(safe-area-inset-top)) 0 20px;}
+  h1{font-size:1.6rem; margin:10px 0 8px; letter-spacing:.5px;}
+  .topbar{display:flex; gap:8px; align-items:stretch; margin-bottom:12px;}
+  .box{
+    flex:1; background:#bbada0; border-radius:10px; padding:6px 10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .box .label{font-size:.62rem; text-transform:uppercase; letter-spacing:.8px; color:#eee4da; font-weight:700;}
+  .box .val{font-size:1.25rem; font-weight:800; line-height:1.2; color:#fff;}
+  .diffs{display:flex; gap:8px; margin-bottom:12px;}
+  .diffs button{
+    flex:1; border:0; border-radius:10px; padding:9px 4px; font-size:.9rem; font-weight:700;
+    background:#cdc1b4; color:#776e65; cursor:pointer;
+  }
+  .diffs button.active{background:#8f7a66; color:#f9f6f2;}
+  .board{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:10px;
+    background:var(--board); border-radius:14px; padding:10px;
+    touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  }
+  .cell{
+    aspect-ratio:1; border-radius:8px; background:var(--cell);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:background .12s ease, box-shadow .12s ease;
+  }
+  .cell.on{
+    background:var(--accent);
+    box-shadow:0 0 14px rgba(237,207,114,.9), inset 0 0 8px rgba(255,255,255,.5);
+  }
+  .cell.off{background:rgba(238,228,218,.4);}
+  .cell.tap{animation:pop .15s ease;}
+  @keyframes pop{0%{transform:scale(.85);}100%{transform:scale(1);}}
+  .actions{margin-top:12px; display:flex; gap:8px;}
+  button.big{
+    flex:1; border:0; border-radius:10px; padding:12px; font-size:1rem; font-weight:700;
+    background:#8f7a66; color:#f9f6f2; cursor:pointer;
+  }
+  button:active{opacity:.85;}
+  .hint{font-size:.8rem; color:#a79b8d; text-align:center; margin:12px 4px 0; line-height:1.45;}
+  .overlay{
+    position:fixed; inset:0; background:rgba(238,228,218,.6);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .overlay.hidden{display:none;}
+  .card{
+    background:#fff; border-radius:16px; padding:24px; text-align:center;
+    width:min(86vw,320px); box-shadow:0 10px 40px rgba(0,0,0,.25);
+  }
+  .card h2{margin:0 0 8px; color:var(--ink);}
+  .card p{margin:6px 0;}
+  .card .record{color:#f65e3b; font-weight:800;}
+  .card button{margin-top:14px; width:100%;}
+  .card button.secondary{background:#bbada0; margin-top:8px;}
+  .hidden{display:none;}
+  .backlink{display:inline-block; margin-top:6px; color:#a79b8d; text-decoration:none; font-weight:700; font-size:.9rem;}
+  .backlink:active{opacity:.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="backlink" href="./">&lsaquo; Juegos</a>
+  <h1>Apagar las luces</h1>
+  <div class="topbar">
+    <div class="box"><span class="label">Toques</span><span class="val" id="moves">0</span></div>
+    <div class="box"><span class="label">Récord</span><span class="val" id="best">-</span></div>
+  </div>
+  <div class="diffs">
+    <button data-d="facil">Fácil</button>
+    <button data-d="normal">Normal</button>
+    <button data-d="dificil">Difícil</button>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="actions">
+    <button class="big" id="newgame">Nueva partida</button>
+  </div>
+  <p class="hint">Cada toque enciende o apaga esa casilla y las de al lado. Apaga todas las luces para ganar.</p>
+</div>
+<div class="overlay hidden" id="overlay">
+  <div class="card">
+    <h2>¡Todas apagadas!</h2>
+    <p>Lo has conseguido en <strong id="finalMoves">0</strong> toques.</p>
+    <p class="record hidden" id="newRecord">¡Nuevo récord!</p>
+    <button class="big" id="again">Otra partida</button>
+    <button class="big secondary" id="menu">Menú de juegos</button>
+  </div>
+</div>
+<script>
+(function(){
+  var SIZE=5, SAVE_KEY="luces-save-v1";
+  var DIFF={facil:5, normal:9, dificil:14};
+  var DIFF_LABEL={facil:"Fácil", normal:"Normal", dificil:"Difícil"};
+  var board=[], moves=0, diff="normal", best={facil:0,normal:0,dificil:0}, won=false;
+
+  var boardEl=document.getElementById("board");
+  var movesEl=document.getElementById("moves");
+  var bestEl=document.getElementById("best");
+  var overlay=document.getElementById("overlay");
+
+  function emptyBoard(){
+    var b=[];
+    for(var i=0;i<SIZE*SIZE;i++) b.push(false);
+    return b;
+  }
+  function toggle(b,i){
+    var r=Math.floor(i/SIZE), c=i%SIZE;
+    b[i]=!b[i];
+    if(r>0) b[i-SIZE]=!b[i-SIZE];
+    if(r<SIZE-1) b[i+SIZE]=!b[i+SIZE];
+    if(c>0) b[i-1]=!b[i-1];
+    if(c<SIZE-1) b[i+1]=!b[i+1];
+  }
+  function anyOn(b){
+    for(var i=0;i<b.length;i++) if(b[i]) return true;
+    return false;
+  }
+  function generate(){
+    // Partimos del tablero apagado y aplicamos toques aleatorios:
+    // así toda partida tiene solución garantizada.
+    var taps=DIFF[diff], b, k;
+    do{
+      b=emptyBoard();
+      var cells=[];
+      for(var i=0;i<SIZE*SIZE;i++) cells.push(i);
+      for(k=0;k<taps;k++){
+        var j=k+Math.floor(Math.random()*(cells.length-k));
+        var t=cells[k]; cells[k]=cells[j]; cells[j]=t;
+        toggle(b,cells[k]);
+      }
+    }while(!anyOn(b));
+    return b;
+  }
+  function render(){
+    boardEl.innerHTML="";
+    for(var i=0;i<SIZE*SIZE;i++){
+      (function(i){
+        var d=document.createElement("div");
+        d.className="cell "+(board[i]?"on":"off");
+        d.addEventListener("click",function(){ press(i,d); });
+        boardEl.appendChild(d);
+      })(i);
+    }
+    movesEl.textContent=moves;
+    bestEl.textContent=best[diff]>0?best[diff]:"-";
+    var bs=document.querySelectorAll(".diffs button");
+    for(var k=0;k<bs.length;k++){
+      bs[k].classList.toggle("active", bs[k].getAttribute("data-d")===diff);
+    }
+  }
+  function press(i,el){
+    if(won) return;
+    toggle(board,i);
+    moves++;
+    el.classList.remove("tap"); void el.offsetWidth; el.classList.add("tap");
+    // actualiza solo las casillas afectadas
+    var r=Math.floor(i/SIZE), c=i%SIZE, idx=[i];
+    if(r>0) idx.push(i-SIZE);
+    if(r<SIZE-1) idx.push(i+SIZE);
+    if(c>0) idx.push(i-1);
+    if(c<SIZE-1) idx.push(i+1);
+    var cells=boardEl.children;
+    for(var k=0;k<idx.length;k++){
+      var d=cells[idx[k]];
+      d.classList.toggle("on",board[idx[k]]);
+      d.classList.toggle("off",!board[idx[k]]);
+    }
+    movesEl.textContent=moves;
+    save();
+    if(!anyOn(board)){ win(); }
+  }
+  function win(){
+    won=true;
+    document.getElementById("finalMoves").textContent=moves;
+    var rec=false;
+    if(best[diff]===0 || moves<best[diff]){ best[diff]=moves; rec=true; }
+    document.getElementById("newRecord").classList.toggle("hidden",!rec);
+    bestEl.textContent=best[diff];
+    save();
+    setTimeout(function(){ overlay.classList.remove("hidden"); },350);
+  }
+  function newGame(){
+    board=generate(); moves=0; won=false;
+    overlay.classList.add("hidden");
+    render(); save();
+  }
+  function save(){
+    try{localStorage.setItem(SAVE_KEY,JSON.stringify({board:board,moves:moves,diff:diff,best:best,won:won}));}catch(e){}
+  }
+  function load(){
+    try{
+      var s=localStorage.getItem(SAVE_KEY);
+      if(!s) return false;
+      var o=JSON.parse(s);
+      if(!o || !o.board || o.board.length!==SIZE*SIZE) return false;
+      board=o.board; moves=o.moves||0; diff=DIFF[o.diff]?o.diff:"normal";
+      best=o.best||{facil:0,normal:0,dificil:0}; won=!!o.won;
+      return true;
+    }catch(e){ return false; }
+  }
+
+  document.getElementById("newgame").addEventListener("click",newGame);
+  document.getElementById("again").addEventListener("click",newGame);
+  document.getElementById("menu").addEventListener("click",function(){ location.href="./"; });
+  var bs=document.querySelectorAll(".diffs button");
+  for(var k=0;k<bs.length;k++){
+    (function(btn){
+      btn.addEventListener("click",function(){
+        var d=btn.getAttribute("data-d");
+        if(d!==diff){ diff=d; }
+        newGame();
+      });
+    })(bs[k]);
+  }
+
+  if(load() && anyOn(board) && !won){ render(); }
+  else { newGame(); }
+  if(won){ render(); overlay.classList.remove("hidden"); document.getElementById("finalMoves").textContent=moves; }
+})();
+</script>
+</body>
+</html>

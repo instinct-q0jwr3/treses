@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Sudoku</title>
+<style>
+  :root{
+    --bg:#faf8ef; --board:#bbada0; --cell:#efe7db;
+    --ink:#776e65; --accent:#edcf72;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(92vw,430px); padding:max(12px, env(safe-area-inset-top)) 0 20px;}
+  h1{font-size:1.6rem; margin:10px 0 8px; letter-spacing:.5px;}
+  .topbar{display:flex; gap:8px; align-items:stretch; margin-bottom:12px;}
+  .box{
+    flex:1; background:#bbada0; border-radius:10px; padding:6px 10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .box .label{font-size:.62rem; text-transform:uppercase; letter-spacing:.8px; color:#eee4da; font-weight:700;}
+  .box .val{font-size:1.05rem; font-weight:800; line-height:1.2; color:#fff;}
+  .diffs{display:flex; gap:8px; margin-bottom:12px;}
+  .diffs button{
+    flex:1; border:0; border-radius:10px; padding:9px 4px; font-size:.9rem; font-weight:700;
+    background:#cdc1b4; color:#776e65; cursor:pointer;
+  }
+  .diffs button.active{background:#8f7a66; color:#f9f6f2;}
+  .board{
+    display:grid; grid-template-columns:repeat(9,1fr);
+    background:var(--board); border-radius:12px; padding:6px; gap:1px;
+    touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  }
+  .cell{
+    aspect-ratio:1; background:var(--cell);
+    display:flex; align-items:center; justify-content:center; position:relative;
+    font-weight:700; font-size:clamp(1rem,5.6vw,1.5rem); color:#3f7cac; cursor:pointer;
+  }
+  .cell.fixed{color:var(--ink); font-weight:800;}
+  .cell.bad{color:#e05a3a;}
+  .cell.sel{background:#f4d98b;}
+  .cell.same{background:#f7e3ae;}
+  .cell.bl{border-left:2px solid #8f7a66;}
+  .cell.bt{border-top:2px solid #8f7a66;}
+  .cell.br{border-right:2px solid #8f7a66;}
+  .cell.bb{border-bottom:2px solid #8f7a66;}
+  .notes{
+    position:absolute; inset:1px; display:grid; grid-template-columns:repeat(3,1fr);
+    font-size:clamp(.42rem,2vw,.62rem); font-weight:600; color:#8a7f72; line-height:1;
+  }
+  .notes span{display:flex; align-items:center; justify-content:center;}
+  .pad{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:12px;}
+  .pad button{
+    border:0; border-radius:10px; padding:12px 0; font-size:1.15rem; font-weight:800;
+    background:#bbada0; color:#f9f6f2; cursor:pointer;
+  }
+  .pad button.utility{font-size:.85rem; font-weight:700;}
+  .pad button.notesOn{background:#f2b179;}
+  button:active{opacity:.85;}
+  .hint{font-size:.8rem; color:#a79b8d; text-align:center; margin:12px 4px 0; line-height:1.45;}
+  .overlay{
+    position:fixed; inset:0; background:rgba(238,228,218,.6);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .overlay.hidden{display:none;}
+  .card{
+    background:#fff; border-radius:16px; padding:24px; text-align:center;
+    width:min(86vw,320px); box-shadow:0 10px 40px rgba(0,0,0,.25);
+  }
+  .card h2{margin:0 0 8px; color:var(--ink);}
+  .card p{margin:6px 0;}
+  .card button{margin-top:14px; width:100%;}
+  .card button.secondary{background:#bbada0; margin-top:8px;}
+  .card .big, button.big{
+    border:0; border-radius:10px; padding:12px; font-size:1rem; font-weight:700;
+    background:#8f7a66; color:#f9f6f2; cursor:pointer;
+  }
+  .hidden{display:none;}
+  .backlink{display:inline-block; margin-top:6px; color:#a79b8d; text-decoration:none; font-weight:700; font-size:.9rem;}
+  .backlink:active{opacity:.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="backlink" href="./">&lsaquo; Juegos</a>
+  <h1>Sudoku</h1>
+  <div class="topbar">
+    <div class="box"><span class="label">Dificultad</span><span class="val" id="diffLabel">Normal</span></div>
+    <div class="box"><span class="label">Completados</span><span class="val" id="done">0</span></div>
+  </div>
+  <div class="diffs">
+    <button data-d="facil">Fácil</button>
+    <button data-d="normal">Normal</button>
+    <button data-d="dificil">Difícil</button>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="pad">
+    <button data-n="1">1</button><button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button><button data-n="5">5</button>
+    <button data-n="6">6</button><button data-n="7">7</button><button data-n="8">8</button><button data-n="9">9</button><button class="utility" id="erase">Borrar</button>
+  </div>
+  <div class="pad" style="grid-template-columns:1fr 1fr;">
+    <button class="utility" id="notesBtn">Notas: no</button>
+    <button class="utility" id="newgame">Nueva partida</button>
+  </div>
+  <p class="hint">Toca una casilla y luego un número. Con «Notas» apuntas candidatos pequeños. Los números en rojo no encajan. Sin reloj: a tu ritmo.</p>
+</div>
+<div class="overlay hidden" id="overlay">
+  <div class="card">
+    <h2>¡Sudoku completado!</h2>
+    <p id="finalText">Cuadrícula resuelta.</p>
+    <button class="big" id="again">Otra partida</button>
+    <button class="big secondary" id="menu">Menú de juegos</button>
+  </div>
+</div>
+<script>
+(function(){
+  var SAVE_KEY="sudoku-save-v1";
+  var GIVENS={facil:45, normal:36, dificil:30};
+  var DIFF_LABEL={facil:"Fácil", normal:"Normal", dificil:"Difícil"};
+  var puzzle=[], solution=[], entries=[], notes=[], fixed=[], diff="normal";
+  var sel=-1, notesMode=false, won=false, completed={facil:0,normal:0,dificil:0};
+
+  var boardEl=document.getElementById("board");
+  var overlay=document.getElementById("overlay");
+
+  // ---------- generador ----------
+  function shuffled(arr){
+    for(var i=arr.length-1;i>0;i--){
+      var j=Math.floor(Math.random()*(i+1)), t=arr[i]; arr[i]=arr[j]; arr[j]=t;
+    }
+    return arr;
+  }
+  function candidates(g,i){
+    var r=Math.floor(i/9), c=i%9, used={}, n;
+    for(var k=0;k<9;k++){
+      used[g[r*9+k]]=true; used[g[k*9+c]]=true;
+    }
+    var br=Math.floor(r/3)*3, bc=Math.floor(c/3)*3;
+    for(var dr=0;dr<3;dr++) for(var dc=0;dc<3;dc++) used[g[(br+dr)*9+bc+dc]]=true;
+    var out=[];
+    for(n=1;n<=9;n++) if(!used[n]) out.push(n);
+    return out;
+  }
+  function fillGrid(g,pos){
+    if(pos===81) return true;
+    if(g[pos]!==0) return fillGrid(g,pos+1);
+    var cand=shuffled(candidates(g,pos));
+    for(var k=0;k<cand.length;k++){
+      g[pos]=cand[k];
+      if(fillGrid(g,pos+1)) return true;
+    }
+    g[pos]=0;
+    return false;
+  }
+  function countSolutions(g,limit){
+    // cuenta soluciones hasta `limit` (basta con saber si hay 0, 1 o más)
+    var i, found=0;
+    function bt(){
+      if(found>=limit) return;
+      var p=-1, bestCand=null;
+      for(var k=0;k<81;k++){
+        if(g[k]===0){
+          var c=candidates(g,k);
+          if(c.length===0) return;
+          if(bestCand===null || c.length<bestCand.length){ p=k; bestCand=c; if(c.length===1) break; }
+        }
+      }
+      if(p===-1){ found++; return; }
+      for(var k=0;k<bestCand.length;k++){
+        g[p]=bestCand[k]; bt(); g[p]=0;
+        if(found>=limit) return;
+      }
+    }
+    bt();
+    return found;
+  }
+  function makePuzzle(givensTarget){
+    var sol=[], i;
+    for(i=0;i<81;i++) sol.push(0);
+    fillGrid(sol,0);
+    var puz=sol.slice();
+    var cells=shuffled([...Array(81).keys()]);
+    var givens=81;
+    for(var k=0;k<cells.length && givens>givensTarget;k++){
+      var idx=cells[k], backup=puz[idx];
+      puz[idx]=0;
+      if(countSolutions(puz.slice(),2)!==1){ puz[idx]=backup; }
+      else { givens--; }
+    }
+    return {puzzle:puz, solution:sol};
+  }
+
+  // ---------- interfaz ----------
+  function cellBorders(d,i){
+    var r=Math.floor(i/9), c=i%9, cls=[];
+    if(c%3===0) cls.push("bl");
+    if(r%3===0) cls.push("bt");
+    if(c===8) cls.push("br");
+    if(r===8) cls.push("bb");
+    return cls.join(" ");
+  }
+  function render(){
+    boardEl.innerHTML="";
+    var selVal = sel>=0 ? (entries[sel]||puzzle[sel]) : 0;
+    for(var i=0;i<81;i++){
+      (function(i){
+        var d=document.createElement("div");
+        d.className="cell "+cellBorders(d,i);
+        var val = fixed[i] ? puzzle[i] : entries[i];
+        if(fixed[i]) d.classList.add("fixed");
+        if(!fixed[i] && entries[i]!==0 && entries[i]!==solution[i]) d.classList.add("bad");
+        if(i===sel) d.classList.add("sel");
+        else if(selVal!==0 && val===selVal) d.classList.add("same");
+        if(val!==0){
+          d.textContent=val;
+        }else if(!fixed[i] && notes[i].length>0){
+          var nd=document.createElement("div");
+          nd.className="notes";
+          for(var n=1;n<=9;n++){
+            var s=document.createElement("span");
+            s.textContent = notes[i].indexOf(n)>=0 ? n : "";
+            nd.appendChild(s);
+          }
+          d.appendChild(nd);
+        }
+        d.addEventListener("click",function(){
+          sel=i; render();
+        });
+        boardEl.appendChild(d);
+      })(i);
+    }
+    document.getElementById("diffLabel").textContent=DIFF_LABEL[diff];
+    document.getElementById("done").textContent=completed[diff]||0;
+    var bs=document.querySelectorAll(".diffs button");
+    for(var k=0;k<bs.length;k++){
+      bs[k].classList.toggle("active", bs[k].getAttribute("data-d")===diff);
+    }
+    document.getElementById("notesBtn").textContent="Notas: "+(notesMode?"sí":"no");
+    document.getElementById("notesBtn").classList.toggle("notesOn",notesMode);
+  }
+  function placeNumber(n){
+    if(won || sel<0 || fixed[sel]) return;
+    if(notesMode){
+      if(entries[sel]!==0) return;
+      var p=notes[sel].indexOf(n);
+      if(p>=0) notes[sel].splice(p,1); else notes[sel].push(n);
+    }else{
+      entries[sel]=n;
+      notes[sel]=[];
+      if(n===solution[sel]){
+        // limpia la nota en fila, columna y caja
+        var r=Math.floor(sel/9), c=sel%9;
+        for(var k=0;k<81;k++){
+          var kr=Math.floor(k/9), kc=k%9;
+          if(kr===r || kc===c || (Math.floor(kr/3)===Math.floor(r/3) && Math.floor(kc/3)===Math.floor(c/3))){
+            var p2=notes[k].indexOf(n);
+            if(p2>=0) notes[k].splice(p2,1);
+          }
+        }
+      }
+    }
+    render(); save(); checkWin();
+  }
+  function erase(){
+    if(won || sel<0 || fixed[sel]) return;
+    entries[sel]=0; notes[sel]=[];
+    render(); save();
+  }
+  function checkWin(){
+    for(var i=0;i<81;i++){
+      if(entries[i]!==solution[i]) return;
+    }
+    won=true;
+    completed[diff]=(completed[diff]||0)+1;
+    document.getElementById("finalText").textContent="Has resuelto el sudoku en dificultad "+DIFF_LABEL[diff]+".";
+    save();
+    setTimeout(function(){ overlay.classList.remove("hidden"); },350);
+  }
+  function newGame(){
+    var g=makePuzzle(GIVENS[diff]);
+    puzzle=g.puzzle; solution=g.solution;
+    entries=[]; notes=[]; fixed=[];
+    for(var i=0;i<81;i++){
+      fixed.push(puzzle[i]!==0);
+      entries.push(puzzle[i]);
+      notes.push([]);
+    }
+    sel=-1; won=false; notesMode=false;
+    overlay.classList.add("hidden");
+    render(); save();
+  }
+  function save(){
+    try{localStorage.setItem(SAVE_KEY,JSON.stringify({
+      puzzle:puzzle, solution:solution, entries:entries, notes:notes,
+      diff:diff, sel:sel, notesMode:notesMode, won:won, completed:completed
+    }));}catch(e){}
+  }
+  function load(){
+    try{
+      var s=localStorage.getItem(SAVE_KEY);
+      if(!s) return false;
+      var o=JSON.parse(s);
+      if(!o || !o.puzzle || o.puzzle.length!==81 || !o.solution || !o.entries) return false;
+      puzzle=o.puzzle; solution=o.solution; entries=o.entries;
+      notes=o.notes||[]; while(notes.length<81) notes.push([]);
+      fixed=[]; for(var i=0;i<81;i++) fixed.push(puzzle[i]!==0);
+      diff=GIVENS[o.diff]?o.diff:"normal";
+      sel=typeof o.sel==="number"?o.sel:-1;
+      notesMode=!!o.notesMode; won=!!o.won;
+      completed=o.completed||{facil:0,normal:0,dificil:0};
+      return true;
+    }catch(e){ return false; }
+  }
+
+  var padBtns=document.querySelectorAll(".pad button[data-n]");
+  for(var k=0;k<padBtns.length;k++){
+    (function(btn){
+      btn.addEventListener("click",function(){ placeNumber(parseInt(btn.getAttribute("data-n"),10)); });
+    })(padBtns[k]);
+  }
+  document.getElementById("erase").addEventListener("click",erase);
+  document.getElementById("notesBtn").addEventListener("click",function(){
+    notesMode=!notesMode; render(); save();
+  });
+  document.getElementById("newgame").addEventListener("click",newGame);
+  document.getElementById("again").addEventListener("click",newGame);
+  document.getElementById("menu").addEventListener("click",function(){ location.href="./"; });
+  var dbtns=document.querySelectorAll(".diffs button");
+  for(var k2=0;k2<dbtns.length;k2++){
+    (function(btn){
+      btn.addEventListener("click",function(){
+        diff=btn.getAttribute("data-d");
+        newGame();
+      });
+    })(dbtns[k2]);
+  }
+
+  if(!load()){ newGame(); }
+  else { render(); if(won){ overlay.classList.remove("hidden"); } }
+})();
+</script>
+</body>
+</html>

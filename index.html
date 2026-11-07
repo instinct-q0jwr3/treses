@@ -1,1 +1,60 @@
-<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=2048.html"><title>2048</title><p><a href="2048.html">Jugar al 2048</a></p></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Juegos</title>
+<style>
+  :root{
+    --bg:#faf8ef; --board:#bbada0; --ink:#776e65; --accent:#edcf72;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(92vw,430px); padding:max(12px, env(safe-area-inset-top)) 0 20px;}
+  h1{font-size:2rem; margin:10px 0 14px; letter-spacing:.5px;}
+  .game{
+    display:flex; align-items:center; gap:14px;
+    background:#bbada0; border-radius:14px; padding:16px;
+    margin-bottom:12px; text-decoration:none; color:#f9f6f2;
+  }
+  .game:active{opacity:.85;}
+  .game .emoji{font-size:2rem; line-height:1;}
+  .game .txt{display:flex; flex-direction:column; gap:2px;}
+  .game .name{font-size:1.15rem; font-weight:800;}
+  .game .desc{font-size:.82rem; color:#eee4da; line-height:1.35;}
+  .hint{font-size:.8rem; color:#a79b8d; text-align:center; margin:14px 4px 0; line-height:1.45;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Juegos</h1>
+  <a class="game" href="2048.html">
+    <span class="emoji">🔢</span>
+    <span class="txt">
+      <span class="name">2048</span>
+      <span class="desc">Desliza las fichas y súmalas hasta llegar al 2048.</span>
+    </span>
+  </a>
+  <a class="game" href="luces.html">
+    <span class="emoji">💡</span>
+    <span class="txt">
+      <span class="name">Apagar las luces</span>
+      <span class="desc">Cada toque cambia esa casilla y las de al lado. Apaga todo el tablero.</span>
+    </span>
+  </a>
+  <a class="game" href="sudoku.html">
+    <span class="emoji">✏️</span>
+    <span class="txt">
+      <span class="name">Sudoku</span>
+      <span class="desc">Rellena la cuadrícula a tu ritmo, con notas y sin reloj.</span>
+    </span>
+  </a>
+  <p class="hint">Tus partidas y récords se guardan en este dispositivo.</p>
+</div>
+</body>
+</html>
