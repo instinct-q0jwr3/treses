@@ -75,7 +75,8 @@
     var rows = [];
     var nav = 100, peak = 100, maxDD = 0;
     var navSeries = [100];
-    for (var t = 1; t <= DATA.nMonths; t++) {
+    var n = Math.min(decisions.length, DATA.nMonths);
+    for (var t = 1; t <= n; t++) {
       var V = cash + idx;
       var d = Math.min(1, Math.max(0, decisions[t - 1]));
       var targetIdx = d * V;
