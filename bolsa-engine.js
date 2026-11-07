@@ -114,7 +114,10 @@
     return {
       rows: rows,
       final: final,
+      // Variación del saldo: incluye el gasto retirado. NO es la rentabilidad de la inversión.
       totalReturn: final / DATA.startCapital - 1,
+      // Rentabilidad de la inversión ajustada por flujos: el gasto retirado no cuenta como pérdida.
+      flowReturn: nav / 100 - 1,
       maxDrawdown: maxDD,
       totalFees: totalFees,
       withdrawnTotal: withdrawnTotal,

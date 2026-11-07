@@ -69,7 +69,7 @@
     </div>
     <div id="replayBanner"></div>
     <div class="card">
-      <p style="margin:0 0 8px">Te dejo <b>10.000 € ficticios</b> y una <b>época real de bolsa</b>, con los nombres y las fechas tapados. Durante <b>24 meses</b> decides cuánto mantener en un <b>fondo índice de bolsa</b> (acciones de un único mercado, nada diversificado) y cuánto en <b>efectivo</b>, que no sube ni baja.</p>
+      <p style="margin:0 0 8px">Te dejo <b>10.000 € ficticios</b> y una <b>época real de bolsa</b>, con los nombres y las fechas tapados. Durante <b>24 meses</b> decides cuánto mantener en un <b>fondo índice de bolsa</b> (acciones de muchas empresas, pero solo del mercado de EE. UU.: sin otros mercados ni otros tipos de activo) y cuánto en <b>efectivo</b>, que no sube ni baja.</p>
       <p style="margin:0 0 8px" class="muted">Solo verás lo que se sabía hasta ese momento. Nada de futuro: cada decisión se aplica al mes que viene, que aún no conoces.</p>
       <p style="margin:0" class="muted">Ojo con las cantidades: son euros ficticios que aplican las rentabilidades reales de un índice medido en dólares, <b>sin contar dividendos ni el cambio dólar-euro</b>.</p>
     </div>
@@ -96,7 +96,7 @@
       <svg id="chart" viewBox="0 0 340 170" role="img" aria-label="Evolución de tu cartera y del mercado"></svg>
       <div class="leyenda">
         <span><span class="punto" style="background:var(--line-you)"></span>Tu cartera</span>
-        <span><span class="punto" style="background:var(--line-mkt)"></span>El mercado (mismo punto de partida)</span>
+        <span><span class="punto" style="background:var(--line-mkt)"></span>El mercado (línea discontinua, mismo punto de partida)</span>
       </div>
     </div>
     <div class="nums">
@@ -139,7 +139,7 @@
     <div class="card">
       <div class="nums" style="margin-top:0">
         <div class="num"><div class="v" id="revFinal"></div><div class="l">Valor final</div></div>
-        <div class="num"><div class="v" id="revRent"></div><div class="l">Rentabilidad</div></div>
+        <div class="num"><div class="v" id="revRent"></div><div class="l">Rentab. inversión</div></div>
         <div class="num"><div class="v" id="revDD"></div><div class="l">Caída máxima</div></div>
       </div>
       <div class="nums">
@@ -157,12 +157,13 @@
         <tr><td>Comprar y mantener</td><td id="cBhF"></td><td id="cBhR"></td><td id="cBhD"></td></tr>
         <tr><td>Todo en efectivo</td><td id="cAcF"></td><td id="cAcR"></td><td id="cAcD"></td></tr>
       </table>
+      <p class="muted" style="margin:8px 0 0">La <b>rentabilidad</b> mide solo la inversión: el gasto del mes 12 no cuenta como pérdida. El <b>valor final</b> sí lo descuenta, porque ese dinero ya no está.</p>
     </div>
     <div class="card">
       <div style="font-weight:800; font-size:.9rem; margin-bottom:4px">Para pensar</div>
       <ul class="notas">
         <li>En esta época comprar y mantener salió mal; en otras épocas pasó justo lo contrario. No había forma de saberlo por adelantado.</li>
-        <li>Has vivido <b>una época concreta y especialmente mala de un único mercado</b> (la bolsa de EE UU). No es representativa de invertir en bolsa en general, ni de una cartera diversificada, ni de lo que pasará en el futuro.</li>
+        <li>Has vivido <b>una época concreta y especialmente mala de un único mercado</b> (la bolsa de EE. UU.). No es representativa de invertir en bolsa en general, ni de una cartera diversificada entre mercados y activos, ni de lo que pasará en el futuro.</li>
         <li>Tu resultado no mide la calidad de tus decisiones: un buen resultado puede ser suerte y uno malo, mala suerte. Lo que sí controlas es cuánto arriesgas, cuánto te cuesta moverte y si tienes efectivo cuando lo necesitas.</li>
         <li>Ninguna caída tiene garantizada la recuperación, ni ninguna subida la continuación.</li>
       </ul>
@@ -237,8 +238,8 @@
     }
     var html = '';
     html += '<line x1="'+P+'" y1="'+Y(D.startCapital)+'" x2="'+(W-P)+'" y2="'+Y(D.startCapital)+'" stroke="#e6ddc9" stroke-dasharray="4 4"/>';
-    html += '<path d="'+path(mkt)+'" fill="none" stroke="#bbada0" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
     html += '<path d="'+path(you)+'" fill="none" stroke="#4a7fbf" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>';
+    html += '<path d="'+path(mkt)+'" fill="none" stroke="#a89a87" stroke-width="2.5" stroke-dasharray="7 5" stroke-linejoin="round" stroke-linecap="round"/>';
     html += '<circle cx="'+X(you.length-1)+'" cy="'+Y(you[you.length-1])+'" r="4" fill="#4a7fbf"/>';
     html += '<text x="'+P+'" y="'+(Y(mx)+3)+'" font-size="9" fill="#a79b8d" text-anchor="start" dy="-3">'+fmt(mx)+'</text>';
     html += '<text x="'+P+'" y="'+(Y(mn)-3)+'" font-size="9" fill="#a79b8d" text-anchor="start" dy="10">'+fmt(mn)+'</text>';
@@ -299,7 +300,7 @@
 
   function fila(idF, idR, idD, s){
     $(idF).textContent = fmt(s.final);
-    $(idR).textContent = pct(s.totalReturn);
+    $(idR).textContent = pct(s.flowReturn);
     $(idD).textContent = pctAbs(s.maxDrawdown);
   }
 
@@ -310,7 +311,7 @@
     $('revTitulo').textContent = D.reveal.title;
     $('revTexto').textContent = D.reveal.text;
     $('revFinal').textContent = fmt(r.final);
-    $('revRent').textContent = pct(r.totalReturn);
+    $('revRent').textContent = pct(r.flowReturn);
     $('revDD').textContent = pctAbs(r.maxDrawdown);
     $('revComis').textContent = r.totalFees.toLocaleString('es-ES',{maximumFractionDigits:2}) + ' €';
     $('revGasto').textContent = fmt(r.withdrawnTotal);

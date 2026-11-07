@@ -39,9 +39,19 @@ var ac = E.allCash();
 cerca(ac.final, 8500, 0.01, 'final = 10.000 - 1.500 del gasto del mes 12');
 cerca(ac.totalFees, 0, 1e-9, 'sin comisiones');
 cerca(ac.maxDrawdown, 0, 1e-12, 'sin caída');
+cerca(ac.flowReturn, 0, 1e-12, 'rentabilidad de la inversión = 0 % (el gasto no es pérdida)');
+cerca(ac.totalReturn, -0.15, 1e-9, 'variación del saldo = -15 % (sí descuenta el gasto)');
 
 console.log('5. Comprar y mantener con gasto del mes 12 (todo índice: venta forzosa con coste)');
 var bh = E.buyAndHold();
+ok(bh.flowReturn > bh.totalReturn, 'rentabilidad ajustada por flujos menos negativa que la variación del saldo');
+// a mano: cada mes la base es el valor anterior menos comisiones y gasto de ese mes
+var navEsp = 100;
+for (i = 0; i < 24; i++) {
+  var prev = i > 0 ? bh.rows[i - 1].value : D.startCapital;
+  navEsp *= bh.rows[i].value / (prev - bh.rows[i].fee - bh.rows[i].withdrawn);
+}
+cerca(bh.flowReturn, navEsp / 100 - 1, 0.001, 'flowReturn coincide con el NAV compuesto a mano');
 ok(bh.rows[11].withdrawn > 1499 && bh.rows[11].withdrawn <= 1500.01, 'se retiran 1.500 en el mes 12');
 ok(bh.totalFees > 57, 'comisiones incluyen la entrada (50) y la venta forzosa (~7,5)');
 ok(bh.final < bh0.final, 'el gasto reduce el valor final');
@@ -61,6 +71,12 @@ console.log('8. Datos');
 ok(D.closes.length === 25, '25 cierres mensuales reales (mayo 2007 a mayo 2009)');
 ok(D.events.length === 24 && D.realMonths.length === 24, '24 acontecimientos y 24 meses reales');
 ok(D.closes[0] === 1530.62 && D.closes[24] === 919.14, 'cierres extremos correctos');
+
+console.log('9. Estrategia mixta: el gasto no distorsiona la rentabilidad');
+var mix = []; for (i = 0; i < 24; i++) mix.push(0.5);
+var sm = E.simulate(mix);
+ok(sm.flowReturn > sm.totalReturn, '50/50: flowReturn > variación del saldo');
+ok(sm.flowReturn < 0 && sm.flowReturn > -0.35, '50/50: rentabilidad de inversión en rango razonable');
 
 console.log(fallos === 0 ? '\nTODAS LAS PRUEBAS PASAN' : '\n' + fallos + ' PRUEBAS FALLAN');
 process.exit(fallos === 0 ? 0 : 1);
