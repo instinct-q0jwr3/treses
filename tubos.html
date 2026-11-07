@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ordenar líquidos</title>
+<style>
+  :root{
+    --bg:#faf8ef; --board:#bbada0; --cell:#efe7db;
+    --ink:#776e65; --accent:#edcf72;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(92vw,430px); padding:max(12px, env(safe-area-inset-top)) 0 20px;}
+  h1{font-size:1.6rem; margin:10px 0 8px; letter-spacing:.5px;}
+  .topbar{display:flex; gap:8px; align-items:stretch; margin-bottom:12px;}
+  .box{
+    flex:1; background:#bbada0; border-radius:10px; padding:6px 10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .box .label{font-size:.62rem; text-transform:uppercase; letter-spacing:.8px; color:#eee4da; font-weight:700;}
+  .box .val{font-size:1.05rem; font-weight:800; line-height:1.2; color:#fff;}
+  .diffs{display:flex; gap:8px; margin-bottom:12px;}
+  .diffs button{
+    flex:1; border:0; border-radius:10px; padding:9px 4px; font-size:.9rem; font-weight:700;
+    background:#cdc1b4; color:#776e65; cursor:pointer;
+  }
+  .diffs button.active{background:#8f7a66; color:#f9f6f2;}
+  .board{
+    display:flex; flex-wrap:wrap; justify-content:center; align-content:flex-start;
+    gap:18px 10px; background:var(--board); border-radius:12px; padding:18px 10px;
+    touch-action:manipulation; user-select:none; -webkit-user-select:none;
+    min-height:280px;
+  }
+  .tube{
+    width:52px; height:172px; padding:5px;
+    border:3px solid #8f7a66; border-top-width:2px;
+    border-radius:6px 6px 18px 18px;
+    display:flex; flex-direction:column-reverse; gap:4px;
+    background:rgba(255,255,255,.25);
+    cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .tube.sel{transform:translateY(-14px); box-shadow:0 6px 0 rgba(0,0,0,.12);}
+  .tube.done{border-color:#6f9b5f;}
+  .unit{border-radius:5px; flex:1;}
+  .actions{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:12px;}
+  .actions button{
+    border:0; border-radius:10px; padding:12px 0; font-size:.85rem; font-weight:700;
+    background:#bbada0; color:#f9f6f2; cursor:pointer;
+  }
+  button:active{opacity:.85;}
+  .hint{font-size:.8rem; color:#a79b8d; text-align:center; margin:12px 4px 0; line-height:1.45;}
+  .overlay{
+    position:fixed; inset:0; background:rgba(238,228,218,.6);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .overlay.hidden{display:none;}
+  .card{
+    background:#fff; border-radius:16px; padding:24px; text-align:center;
+    width:min(86vw,320px); box-shadow:0 10px 40px rgba(0,0,0,.25);
+  }
+  .card h2{margin:0 0 8px; color:var(--ink);}
+  .card p{margin:6px 0;}
+  .card button{margin-top:14px; width:100%;}
+  .card button.secondary{background:#bbada0; margin-top:8px;}
+  .card .big, button.big{
+    border:0; border-radius:10px; padding:12px; font-size:1rem; font-weight:700;
+    background:#8f7a66; color:#f9f6f2; cursor:pointer;
+  }
+  .hidden{display:none;}
+  .backlink{display:inline-block; margin-top:6px; color:#a79b8d; text-decoration:none; font-weight:700; font-size:.9rem;}
+  .backlink:active{opacity:.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="backlink" href="./">&lsaquo; Juegos</a>
+  <h1>Ordenar líquidos</h1>
+  <div class="topbar">
+    <div class="box"><span class="label">Dificultad</span><span class="val" id="diffLabel">Normal</span></div>
+    <div class="box"><span class="label">Movimientos</span><span class="val" id="moves">0</span></div>
+    <div class="box"><span class="label">Récord</span><span class="val" id="best">—</span></div>
+  </div>
+  <div class="diffs">
+    <button data-d="facil">Fácil</button>
+    <button data-d="normal">Normal</button>
+    <button data-d="dificil">Difícil</button>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="actions">
+    <button id="undo">Deshacer</button>
+    <button id="restart">Reiniciar</button>
+    <button id="newgame">Nueva partida</button>
+  </div>
+  <p class="hint">Toca un tubo y luego otro para verter. Solo puedes verter sobre el mismo color o en un tubo vacío. Ganas cuando cada tubo tiene un solo color.</p>
+</div>
+<div class="overlay hidden" id="overlay">
+  <div class="card">
+    <h2>¡Ordenado!</h2>
+    <p id="finalText">Todos los colores separados.</p>
+    <button class="big" id="again">Otra partida</button>
+    <button class="big secondary" id="menu">Menú de juegos</button>
+  </div>
+</div>
+<script>
+(function(){
+  var SAVE_KEY="tubos-save-v1";
+  var CAP=4;
+  var DIFFS={
+    facil:{colors:5, spare:2, minLen:13, label:"Fácil"},
+    normal:{colors:6, spare:1, minLen:15, label:"Normal"},
+    dificil:{colors:8, spare:1, minLen:17, label:"Difícil"}
+  };
+  var COLORS=["#e05a3a","#f2b179","#edcf72","#7fb069","#3f7cac","#9b72cf","#e98fae","#4fae9e","#8f7a66"];
+  var diff="normal", initial=[], tubes=[], history=[], moves=0, sel=-1, won=false;
+  var best={facil:0,normal:0,dificil:0};
+
+  var boardEl=document.getElementById("board");
+  var overlay=document.getElementById("overlay");
+
+  // ---------- generador ----------
+  function deal(colors,spare){
+    var total=colors+spare, units=[], i, j, t;
+    for(i=0;i<colors;i++) for(j=0;j<CAP;j++) units.push(i);
+    for(i=units.length-1;i>0;i--){
+      j=Math.floor(Math.random()*(i+1));
+      var tmp=units[i]; units[i]=units[j]; units[j]=tmp;
+    }
+    var st=[];
+    for(t=0;t<total;t++) st.push(units.slice(t*CAP,(t+1)*CAP));
+    return st;
+  }
+  function hasComplete(st){
+    for(var i=0;i<st.length;i++){
+      var t=st[i];
+      if(t.length===CAP && t.every(function(x){return x===t[0];})) return true;
+    }
+    return false;
+  }
+  function stateKey(st){
+    return st.map(function(t){return t.join(",");}).sort().join("|");
+  }
+  function isWin(st){
+    return st.every(function(t){
+      return t.length===0 || (t.length===CAP && t.every(function(x){return x===t[0];}));
+    });
+  }
+  function validMoves(st){
+    var out=[], s, d;
+    for(s=0;s<st.length;s++){
+      var src=st[s];
+      if(!src.length) continue;
+      var color=src[src.length-1], group=1, i;
+      for(i=src.length-2;i>=0 && src[i]===color;i--) group++;
+      var uniform=group===src.length;
+      for(d=0;d<st.length;d++){
+        if(d===s) continue;
+        var dst=st[d];
+        if(dst.length>=CAP) continue;
+        if(dst.length===0){ if(uniform) continue; }
+        else if(dst[dst.length-1]!==color) continue;
+        out.push([s,d]);
+      }
+    }
+    out.sort(function(a,b){ return (st[b[1]].length!==0)-(st[a[1]].length!==0); });
+    return out;
+  }
+  function applyMove(st,m){
+    var ns=st.map(function(t){return t.slice();});
+    var src=ns[m[0]], dst=ns[m[1]];
+    var color=src[src.length-1];
+    while(src.length && src[src.length-1]===color && dst.length<CAP) dst.push(src.pop());
+    return ns;
+  }
+  // resuelve con retroceso; devuelve la longitud de una solución o -1
+  function solveLen(start,nodeCap){
+    var seen={}; seen[stateKey(start)]=true;
+    var nodes=0;
+    function dfs(st,depth){
+      if(isWin(st)) return depth;
+      if(++nodes>nodeCap) return -1;
+      var ms=validMoves(st);
+      for(var i=0;i<ms.length;i++){
+        var ns=applyMove(st,ms[i]);
+        var k=stateKey(ns);
+        if(seen[k]) continue;
+        seen[k]=true;
+        var r=dfs(ns,depth+1);
+        if(r>=0) return r;
+      }
+      return -1;
+    }
+    return dfs(start,0);
+  }
+  function generate(cfg){
+    for(var tries=0;tries<400;tries++){
+      var st=deal(cfg.colors,cfg.spare);
+      if(hasComplete(st)) continue;
+      var L=solveLen(st,400000);
+      if(L>=cfg.minLen) return st;
+    }
+    // plan B: sin exigir longitud mínima, pero siempre resoluble
+    for(var t2=0;t2<400;t2++){
+      var st2=deal(cfg.colors,cfg.spare);
+      if(hasComplete(st2)) continue;
+      if(solveLen(st2,400000)>=0) return st2;
+    }
+    return deal(cfg.colors,cfg.spare);
+  }
+
+  // ---------- interfaz ----------
+  function render(){
+    boardEl.innerHTML="";
+    for(var i=0;i<tubes.length;i++){
+      (function(i){
+        var t=tubes[i];
+        var d=document.createElement("div");
+        d.className="tube";
+        if(i===sel) d.classList.add("sel");
+        if(t.length===CAP && t.every(function(x){return x===t[0];})) d.classList.add("done");
+        for(var j=0;j<t.length;j++){
+          var u=document.createElement("div");
+          u.className="unit";
+          u.style.background=COLORS[t[j]%COLORS.length];
+          d.appendChild(u);
+        }
+        d.addEventListener("click",function(){ tap(i); });
+        boardEl.appendChild(d);
+      })(i);
+    }
+    document.getElementById("diffLabel").textContent=DIFFS[diff].label;
+    document.getElementById("moves").textContent=moves;
+    document.getElementById("best").textContent=best[diff]?best[diff]:"—";
+    var bs=document.querySelectorAll(".diffs button");
+    for(var k=0;k<bs.length;k++){
+      bs[k].classList.toggle("active", bs[k].getAttribute("data-d")===diff);
+    }
+  }
+  function canPour(s,d){
+    var src=tubes[s], dst=tubes[d];
+    if(!src.length || dst.length>=CAP) return false;
+    return dst.length===0 || dst[dst.length-1]===src[src.length-1];
+  }
+  function pour(s,d){
+    history.push(tubes.map(function(t){return t.slice();}));
+    var src=tubes[s], dst=tubes[d];
+    var color=src[src.length-1];
+    while(src.length && src[src.length-1]===color && dst.length<CAP) dst.push(src.pop());
+    moves++;
+  }
+  function tap(i){
+    if(won) return;
+    if(sel<0){
+      if(tubes[i].length) sel=i;
+    }else if(sel===i){
+      sel=-1;
+    }else if(canPour(sel,i)){
+      pour(sel,i);
+      sel=-1;
+      checkWin();
+    }else{
+      sel=tubes[i].length?i:-1;
+    }
+    render(); save();
+  }
+  function checkWin(){
+    if(!isWin(tubes)) return;
+    won=true;
+    if(!best[diff] || moves<best[diff]) best[diff]=moves;
+    document.getElementById("finalText").textContent=
+      "Resuelto en "+moves+" movimientos ("+DIFFS[diff].label+").";
+    save();
+    setTimeout(function(){ overlay.classList.remove("hidden"); },350);
+  }
+  function newGame(){
+    initial=generate(DIFFS[diff]);
+    tubes=initial.map(function(t){return t.slice();});
+    history=[]; moves=0; sel=-1; won=false;
+    overlay.classList.add("hidden");
+    render(); save();
+  }
+  function restart(){
+    if(!initial.length) return;
+    tubes=initial.map(function(t){return t.slice();});
+    history=[]; moves=0; sel=-1; won=false;
+    overlay.classList.add("hidden");
+    render(); save();
+  }
+  function undo(){
+    if(!history.length || won) return;
+    tubes=history.pop();
+    moves=Math.max(0,moves-1); sel=-1;
+    render(); save();
+  }
+  function save(){
+    try{localStorage.setItem(SAVE_KEY,JSON.stringify({
+      diff:diff, initial:initial, tubes:tubes, history:history,
+      moves:moves, won:won, best:best
+    }));}catch(e){}
+  }
+  function load(){
+    try{
+      var s=localStorage.getItem(SAVE_KEY);
+      if(!s) return false;
+      var o=JSON.parse(s);
+      if(!o || !o.initial || !o.tubes || !DIFFS[o.diff]) return false;
+      diff=o.diff; initial=o.initial; tubes=o.tubes;
+      history=o.history||[]; moves=o.moves||0; won=!!o.won;
+      best=o.best||{facil:0,normal:0,dificil:0};
+      return true;
+    }catch(e){ return false; }
+  }
+
+  document.getElementById("undo").addEventListener("click",undo);
+  document.getElementById("restart").addEventListener("click",restart);
+  document.getElementById("newgame").addEventListener("click",newGame);
+  document.getElementById("again").addEventListener("click",newGame);
+  document.getElementById("menu").addEventListener("click",function(){ location.href="./"; });
+  var dbtns=document.querySelectorAll(".diffs button");
+  for(var k2=0;k2<dbtns.length;k2++){
+    (function(btn){
+      btn.addEventListener("click",function(){
+        diff=btn.getAttribute("data-d");
+        newGame();
+      });
+    })(dbtns[k2]);
+  }
+
+  if(!load()){ newGame(); }
+  else { render(); if(won){ overlay.classList.remove("hidden"); } }
+})();
+</script>
+</body>
+</html>

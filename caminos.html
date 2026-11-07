@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Caminos de colores</title>
+<style>
+  :root{
+    --bg:#faf8ef; --board:#bbada0; --cell:#efe7db;
+    --ink:#776e65; --accent:#edcf72;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    display:flex; justify-content:center; min-height:100dvh;
+  }
+  .wrap{width:min(92vw,430px); padding:max(12px, env(safe-area-inset-top)) 0 20px;}
+  h1{font-size:1.6rem; margin:10px 0 8px; letter-spacing:.5px;}
+  .topbar{display:flex; gap:8px; align-items:stretch; margin-bottom:12px;}
+  .box{
+    flex:1; background:#bbada0; border-radius:10px; padding:6px 10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .box .label{font-size:.62rem; text-transform:uppercase; letter-spacing:.8px; color:#eee4da; font-weight:700;}
+  .box .val{font-size:1.05rem; font-weight:800; line-height:1.2; color:#fff;}
+  .diffs{display:flex; gap:8px; margin-bottom:12px;}
+  .diffs button{
+    flex:1; border:0; border-radius:10px; padding:9px 4px; font-size:.9rem; font-weight:700;
+    background:#cdc1b4; color:#776e65; cursor:pointer;
+  }
+  .diffs button.active{background:#8f7a66; color:#f9f6f2;}
+  .board{
+    display:grid; background:var(--board); border-radius:12px; padding:6px; gap:3px;
+    touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  }
+  .cell{
+    aspect-ratio:1; background:var(--cell); border-radius:5px;
+    position:relative; cursor:pointer;
+  }
+  .pc{position:absolute; left:33%; top:33%; width:34%; height:34%;}
+  .bn{position:absolute; left:33%; top:0; width:34%; height:50%;}
+  .bs{position:absolute; left:33%; top:50%; width:34%; height:50%;}
+  .bw{position:absolute; left:0; top:33%; width:50%; height:34%;}
+  .be{position:absolute; left:50%; top:33%; width:50%; height:34%;}
+  .dot{
+    position:absolute; inset:16%; border-radius:50%;
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.18);
+  }
+  .cell.end .pc{box-shadow:0 0 0 2px #fff; border-radius:6px;}
+  .actions{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:12px;}
+  .actions button{
+    border:0; border-radius:10px; padding:12px 0; font-size:.85rem; font-weight:700;
+    background:#bbada0; color:#f9f6f2; cursor:pointer;
+  }
+  button:active{opacity:.85;}
+  .hint{font-size:.8rem; color:#a79b8d; text-align:center; margin:12px 4px 0; line-height:1.45;}
+  .overlay{
+    position:fixed; inset:0; background:rgba(238,228,218,.6);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .overlay.hidden{display:none;}
+  .card{
+    background:#fff; border-radius:16px; padding:24px; text-align:center;
+    width:min(86vw,320px); box-shadow:0 10px 40px rgba(0,0,0,.25);
+  }
+  .card h2{margin:0 0 8px; color:var(--ink);}
+  .card p{margin:6px 0;}
+  .card button{margin-top:14px; width:100%;}
+  .card button.secondary{background:#bbada0; margin-top:8px;}
+  .card .big, button.big{
+    border:0; border-radius:10px; padding:12px; font-size:1rem; font-weight:700;
+    background:#8f7a66; color:#f9f6f2; cursor:pointer;
+  }
+  .hidden{display:none;}
+  .backlink{display:inline-block; margin-top:6px; color:#a79b8d; text-decoration:none; font-weight:700; font-size:.9rem;}
+  .backlink:active{opacity:.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="backlink" href="./">&lsaquo; Juegos</a>
+  <h1>Caminos de colores</h1>
+  <div class="topbar">
+    <div class="box"><span class="label">Dificultad</span><span class="val" id="diffLabel">Normal</span></div>
+    <div class="box"><span class="label">Nivel</span><span class="val" id="levelLabel">1/12</span></div>
+    <div class="box"><span class="label">Completados</span><span class="val" id="done">0</span></div>
+  </div>
+  <div class="diffs">
+    <button data-d="facil">Fácil</button>
+    <button data-d="normal">Normal</button>
+    <button data-d="dificil">Difícil</button>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="actions">
+    <button id="prev">&lsaquo; Anterior</button>
+    <button id="restart">Reiniciar</button>
+    <button id="next">Siguiente &rsaquo;</button>
+  </div>
+  <p class="hint">Toca un punto y luego las casillas de al lado para trazar su camino hasta la pareja. Los caminos no se cruzan y hay que llenar todo el tablero. Toca tu propio camino para retroceder.</p>
+</div>
+<div class="overlay hidden" id="overlay">
+  <div class="card">
+    <h2>¡Nivel completado!</h2>
+    <p id="finalText">Tablero resuelto.</p>
+    <button class="big" id="again">Siguiente nivel</button>
+    <button class="big secondary" id="menu">Menú de juegos</button>
+  </div>
+</div>
+<script>
+(function(){
+  var SAVE_KEY="caminos-save-v1";
+  var COLORS=["#e05a3a","#f2b179","#edcf72","#7fb069","#3f7cac","#9b72cf","#e98fae","#4fae9e"];
+  var LEVELS={"facil":{"n":5,"list":[[[24,22],[21,5],[0,3],[4,13],[14,18]],[[22,10],[5,2],[3,9],[8,19],[24,18]],[[10,9],[8,12],[13,24],[23,21],[20,16]],[[12,9],[8,14],[19,23],[18,11],[10,6]],[[18,24],[19,4],[3,17],[22,5],[0,6]],[[12,5],[0,6],[7,9],[8,23],[18,20]],[[20,19],[18,15],[10,0],[1,3],[4,6]],[[24,4],[3,7],[2,0],[5,11],[10,20]],[[20,23],[24,16],[15,0],[1,9],[14,12]],[[6,2],[7,11],[10,17],[22,24],[19,4]],[[18,14],[9,2],[1,10],[15,11],[6,12]],[[8,14],[19,22],[21,10],[5,17],[18,12]]]},"normal":{"n":6,"list":[[[9,11],[10,34],[33,21],[15,20],[19,12],[13,6]],[[3,10],[9,17],[23,2],[1,25],[24,34],[35,28]],[[29,32],[26,18],[19,21],[22,11],[5,6],[12,7]],[[3,11],[10,8],[2,20],[14,21],[27,34],[35,23]],[[21,11],[5,7],[1,6],[12,30],[31,26],[32,34]],[[32,6],[0,34],[33,16],[10,14],[15,20],[19,26]],[[13,8],[2,23],[29,22],[16,21],[27,25],[31,19]],[[17,28],[22,33],[32,6],[0,5],[11,13],[14,26]],[[24,33],[34,17],[11,27],[26,8],[7,14],[20,15]],[[18,32],[33,4],[10,22],[28,14],[13,6],[0,2]],[[8,23],[17,4],[3,10],[16,21],[15,20],[26,19]],[[13,5],[11,21],[22,29],[35,32],[26,18],[24,31]]]},"dificil":{"n":7,"list":[[[48,46],[39,25],[18,1],[0,9],[10,24],[31,42],[35,16],[23,36]],[[2,21],[28,22],[15,9],[16,37],[44,19],[26,40],[39,31],[32,10]],[[12,20],[27,39],[40,19],[18,10],[17,30],[23,1],[0,21],[28,22]],[[4,20],[27,41],[48,33],[26,32],[39,16],[23,29],[28,7],[0,8]],[[38,33],[34,19],[20,17],[24,44],[43,35],[36,22],[23,7],[0,2]],[[10,2],[1,9],[16,38],[31,17],[18,39],[46,26],[19,5],[12,4]],[[16,4],[5,10],[17,27],[26,30],[31,47],[40,28],[21,15],[14,8]],[[16,0],[7,15],[14,43],[36,27],[20,40],[39,25],[24,11],[10,4]],[[34,44],[43,7],[0,5],[6,20],[27,33],[40,29],[30,16],[17,12]],[[14,28],[35,44],[45,47],[48,27],[20,18],[11,0],[7,23],[24,10]],[[20,6],[5,1],[0,14],[21,43],[36,11],[12,32],[31,39],[46,48]],[[16,2],[1,21],[22,42],[43,47],[48,39],[38,10],[3,13],[20,18]]]}};
+  var DIFF_LABEL={facil:"Fácil",normal:"Normal",dificil:"Difícil"};
+  var diff="normal", level=0;
+  var unlocked={facil:0,normal:0,dificil:0};
+  var done={facil:{},normal:{},dificil:{}};
+  var paths=[], sel=-1, won=false;
+
+  var boardEl=document.getElementById("board");
+  var overlay=document.getElementById("overlay");
+
+  function size(){ return LEVELS[diff].n; }
+  function pairs(){ return LEVELS[diff].list[level]; }
+  function rc(i){ var n=size(); return [Math.floor(i/n), i%n]; }
+  function isAdjacent(a,b){
+    var ra=rc(a), rb=rc(b);
+    return Math.abs(ra[0]-rb[0])+Math.abs(ra[1]-rb[1])===1;
+  }
+  function ownerMap(){
+    var m={};
+    for(var c=0;c<paths.length;c++){
+      for(var k=0;k<paths[c].length;k++) m[paths[c][k]]=c;
+    }
+    return m;
+  }
+  function isComplete(c){
+    var p=paths[c], pr=pairs()[c];
+    if(p.length<2) return false;
+    var last=p[p.length-1];
+    return (p[0]===pr[0] && last===pr[1]) || (p[0]===pr[1] && last===pr[0]);
+  }
+  function dotColorOf(v){
+    var pr=pairs();
+    for(var c=0;c<pr.length;c++){
+      if(pr[c][0]===v || pr[c][1]===v) return c;
+    }
+    return -1;
+  }
+  function truncate(c,uptoIdx){
+    paths[c]=paths[c].slice(0,uptoIdx+1);
+  }
+
+  // ---------- interfaz ----------
+  function render(){
+    var n=size(), pr=pairs(), own=ownerMap();
+    boardEl.style.gridTemplateColumns="repeat("+n+",1fr)";
+    boardEl.innerHTML="";
+    var selEnd = sel>=0 && paths[sel].length ? paths[sel][paths[sel].length-1] : -1;
+    for(var v=0;v<n*n;v++){
+      (function(v){
+        var d=document.createElement("div");
+        d.className="cell";
+        if(v===selEnd) d.classList.add("end");
+        var c=own[v];
+        if(c!==undefined){
+          var col=COLORS[c%COLORS.length];
+          var pc=document.createElement("div");
+          pc.className="pc"; pc.style.background=col;
+          d.appendChild(pc);
+          var p=paths[c], idx=p.indexOf(v);
+          var dirs=[];
+          if(idx>0) dirs.push(p[idx-1]);
+          if(idx<p.length-1) dirs.push(p[idx+1]);
+          for(var k=0;k<dirs.length;k++){
+            var delta=dirs[k]-v, bar=document.createElement("div");
+            bar.style.background=col;
+            if(delta===-n) bar.className="bn";
+            else if(delta===n) bar.className="bs";
+            else if(delta===-1) bar.className="bw";
+            else bar.className="be";
+            d.appendChild(bar);
+          }
+        }
+        var dc=dotColorOf(v);
+        if(dc>=0){
+          var dot=document.createElement("div");
+          dot.className="dot";
+          dot.style.background=COLORS[dc%COLORS.length];
+          d.appendChild(dot);
+        }
+        d.addEventListener("click",function(){ tap(v); });
+        boardEl.appendChild(d);
+      })(v);
+    }
+    document.getElementById("diffLabel").textContent=DIFF_LABEL[diff];
+    document.getElementById("levelLabel").textContent=(level+1)+"/"+LEVELS[diff].list.length;
+    var count=0; for(var key in done[diff]) if(done[diff][key]) count++;
+    document.getElementById("done").textContent=count;
+    var bs=document.querySelectorAll(".diffs button");
+    for(var k2=0;k2<bs.length;k2++){
+      bs[k2].classList.toggle("active", bs[k2].getAttribute("data-d")===diff);
+    }
+  }
+  function tap(v){
+    if(won) return;
+    var own=ownerMap();
+    var c=own[v];
+    if(c!==undefined){
+      if(c===sel){
+        // tocar el propio camino: retrocede hasta ese punto; en el extremo, deselecciona
+        var idx=paths[c].indexOf(v);
+        if(idx===paths[c].length-1) sel=-1;
+        else truncate(c,idx);
+      }else if(sel>=0 && paths[sel].length && isAdjacent(paths[sel][paths[sel].length-1],v)){
+        // extiende mordiendo el camino que ocupaba la casilla
+        var oc=own[v];
+        paths[oc]=paths[oc].slice(0,paths[oc].indexOf(v));
+        paths[sel].push(v);
+      }else{
+        sel=c;
+      }
+      render(); save(); checkWin(); return;
+    }
+    var dc=dotColorOf(v);
+    if(dc>=0){
+      if(sel===dc && paths[dc].length && isAdjacent(paths[dc][paths[dc].length-1],v) && !isComplete(dc)){
+        paths[dc].push(v);
+      }else if(!paths[dc].length){
+        paths[dc]=[v]; sel=dc;
+      }else{
+        sel=dc;
+      }
+      render(); save(); checkWin(); return;
+    }
+    if(sel>=0 && paths[sel].length){
+      var last=paths[sel][paths[sel].length-1];
+      if(isAdjacent(last,v)){
+        paths[sel].push(v);
+        render(); save(); checkWin();
+      }
+    }
+  }
+  function checkWin(){
+    var n=size(), own=ownerMap(), filled=0;
+    for(var v=0;v<n*n;v++) if(own[v]!==undefined) filled++;
+    for(var c=0;c<paths.length;c++){
+      if(!isComplete(c)) return;
+    }
+    if(filled!==n*n) return;
+    won=true;
+    done[diff][level]=true;
+    if(level+1<LEVELS[diff].list.length && unlocked[diff]<level+1) unlocked[diff]=level+1;
+    var last=level+1>=LEVELS[diff].list.length;
+    document.getElementById("finalText").textContent= last
+      ? "Era el último nivel de "+DIFF_LABEL[diff]+". ¡Buen trabajo!"
+      : "Nivel "+(level+1)+" de "+DIFF_LABEL[diff]+" resuelto.";
+    document.getElementById("again").textContent= last ? "Repetir nivel" : "Siguiente nivel";
+    save();
+    setTimeout(function(){ overlay.classList.remove("hidden"); },350);
+  }
+  function loadLevel(keepOverlay){
+    var n=size(), pr=pairs();
+    paths=[]; for(var c=0;c<pr.length;c++) paths.push([]);
+    sel=-1; won=false;
+    if(!keepOverlay) overlay.classList.add("hidden");
+    render(); save();
+  }
+  function save(){
+    try{localStorage.setItem(SAVE_KEY,JSON.stringify({
+      diff:diff, level:level, unlocked:unlocked, done:done, paths:paths, won:won
+    }));}catch(e){}
+  }
+  function load(){
+    try{
+      var s=localStorage.getItem(SAVE_KEY);
+      if(!s) return false;
+      var o=JSON.parse(s);
+      if(!o || !LEVELS[o.diff]) return false;
+      diff=o.diff;
+      level=Math.min(o.level||0, LEVELS[diff].list.length-1);
+      unlocked=o.unlocked||{facil:0,normal:0,dificil:0};
+      done=o.done||{facil:{},normal:{},dificil:{}};
+      var pr=pairs();
+      paths=(o.paths&&o.paths.length===pr.length)?o.paths:null;
+      won=!!o.won;
+      if(!paths){ paths=[]; for(var c=0;c<pr.length;c++) paths.push([]); }
+      return true;
+    }catch(e){ return false; }
+  }
+
+  document.getElementById("restart").addEventListener("click",function(){ loadLevel(); });
+  document.getElementById("prev").addEventListener("click",function(){
+    if(level>0){ level--; loadLevel(); }
+  });
+  document.getElementById("next").addEventListener("click",function(){
+    if(level+1<=unlocked[diff] && level+1<LEVELS[diff].list.length){ level++; loadLevel(); }
+  });
+  document.getElementById("again").addEventListener("click",function(){
+    if(level+1<LEVELS[diff].list.length){ level++; }
+    loadLevel();
+  });
+  document.getElementById("menu").addEventListener("click",function(){ location.href="./"; });
+  var dbtns=document.querySelectorAll(".diffs button");
+  for(var k2=0;k2<dbtns.length;k2++){
+    (function(btn){
+      btn.addEventListener("click",function(){
+        diff=btn.getAttribute("data-d");
+        level=Math.min(level,unlocked[diff]);
+        loadLevel();
+      });
+    })(dbtns[k2]);
+  }
+
+  if(!load()){ loadLevel(); }
+  else { render(); if(won){ overlay.classList.remove("hidden"); } }
+})();
+</script>
+</body>
+</html>
