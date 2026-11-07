@@ -59,7 +59,7 @@
       text: 'El índice era el S&P 500. En esos 24 meses perdió alrededor de un 40 % (índice de precios, sin dividendos): tocó máximo histórico en octubre de 2007, se hundió tras la quiebra de Lehman Brothers en septiembre de 2008 y tocó fondo el 9 de marzo de 2009, en mínimos de 12 años.',
       sources: [
         { label: 'Datos del índice: S&P 500 (^GSPC), cierres mensuales — Yahoo Finance', url: 'https://finance.yahoo.com/quote/%5EGSPC/history' },
-        { label: 'Cronología: Crisis financiera de 2008 — Wikipedia', url: 'https://es.wikipedia.org/wiki/Crisis_financiera_de_2008' }
+        { label: 'Cronología: Crisis financiera de 2007-2008 — Wikipedia', url: 'https://es.wikipedia.org/wiki/Crisis_financiera_de_2008' }
       ]
     }
   };
