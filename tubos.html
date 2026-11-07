@@ -72,6 +72,11 @@
     border:0; border-radius:10px; padding:12px; font-size:1rem; font-weight:700;
     background:#8f7a66; color:#f9f6f2; cursor:pointer;
   }
+  .linkbtn{
+    display:block; margin:12px auto 0; border:0; background:none;
+    color:#a79b8d; font-size:.85rem; font-weight:700; cursor:pointer;
+    text-decoration:underline;
+  }
   .hidden{display:none;}
   .backlink{display:inline-block; margin-top:6px; color:#a79b8d; text-decoration:none; font-weight:700; font-size:.9rem;}
   .backlink:active{opacity:.7;}
@@ -107,6 +112,15 @@
     <button class="big secondary" id="menu">Menú de juegos</button>
   </div>
 </div>
+<div class="overlay hidden" id="lostOverlay">
+  <div class="card">
+    <h2>Sin salida</h2>
+    <p>Desde aquí ya no hay forma de separar todos los colores.</p>
+    <button class="big" id="lostUndo">Deshacer</button>
+    <button class="big secondary" id="lostRestart">Reiniciar</button>
+    <button class="linkbtn" id="lostKeep">Seguir jugando</button>
+  </div>
+</div>
 <script>
 (function(){
   var SAVE_KEY="tubos-save-v1";
@@ -119,9 +133,12 @@
   var COLORS=["#e05a3a","#f2b179","#edcf72","#7fb069","#3f7cac","#9b72cf","#e98fae","#4fae9e","#8f7a66"];
   var diff="normal", initial=[], tubes=[], history=[], moves=0, sel=-1, won=false;
   var best={facil:0,normal:0,dificil:0};
+  var lossToken=0, lostDismissed=false;
+  var LOSS_NODE_CAP=500000;
 
   var boardEl=document.getElementById("board");
   var overlay=document.getElementById("overlay");
+  var lostOverlay=document.getElementById("lostOverlay");
 
   // ---------- generador ----------
   function deal(colors,spare){
@@ -177,13 +194,15 @@
     while(src.length && src[src.length-1]===color && dst.length<CAP) dst.push(src.pop());
     return ns;
   }
-  // resuelve con retroceso; devuelve la longitud de una solución o -1
-  function solveLen(start,nodeCap){
+  // resuelve con retroceso; devuelve {status:"solved"|"impossible"|"unknown", len}
+  // "unknown" = se agotó el límite de nodos sin concluir (nunca se trata como derrota)
+  function solve(start,nodeCap){
     var seen={}; seen[stateKey(start)]=true;
-    var nodes=0;
+    var nodes=0, capped=false;
     function dfs(st,depth){
       if(isWin(st)) return depth;
-      if(++nodes>nodeCap) return -1;
+      if(capped) return -1;
+      if(++nodes>nodeCap){ capped=true; return -1; }
       var ms=validMoves(st);
       for(var i=0;i<ms.length;i++){
         var ns=applyMove(st,ms[i]);
@@ -192,10 +211,17 @@
         seen[k]=true;
         var r=dfs(ns,depth+1);
         if(r>=0) return r;
+        if(capped) return -1;
       }
       return -1;
     }
-    return dfs(start,0);
+    var res=dfs(start,0);
+    if(res>=0) return {status:"solved", len:res};
+    return {status: capped?"unknown":"impossible", len:-1};
+  }
+  function solveLen(start,nodeCap){
+    var r=solve(start,nodeCap);
+    return r.status==="solved"?r.len:-1;
   }
   function generate(cfg){
     for(var tries=0;tries<400;tries++){
@@ -211,6 +237,27 @@
       if(solveLen(st2,400000)>=0) return st2;
     }
     return deal(cfg.colors,cfg.spare);
+  }
+
+  // ---------- detección de derrota ----------
+  // Solo avisa cuando el solver agota TODO el espacio de estados sin
+  // encontrar solución. Si el límite de nodos deja la búsqueda a medias
+  // ("unknown") no se muestra nada: incertidumbre nunca es derrota.
+  function scheduleLossCheck(){
+    if(won) return;
+    var tok=++lossToken;
+    setTimeout(function(){
+      if(tok!==lossToken || won) return;
+      var r=solve(tubes.map(function(t){return t.slice();}), LOSS_NODE_CAP);
+      if(tok!==lossToken || won) return;
+      if(r.status==="impossible" && !lostDismissed){
+        lostOverlay.classList.remove("hidden");
+      }
+    },250);
+  }
+  function clearLost(){
+    lossToken++; lostDismissed=false;
+    lostOverlay.classList.add("hidden");
   }
 
   // ---------- interfaz ----------
@@ -262,7 +309,9 @@
     }else if(canPour(sel,i)){
       pour(sel,i);
       sel=-1;
+      lostDismissed=false;
       checkWin();
+      scheduleLossCheck();
     }else{
       sel=tubes[i].length?i:-1;
     }
@@ -282,6 +331,7 @@
     tubes=initial.map(function(t){return t.slice();});
     history=[]; moves=0; sel=-1; won=false;
     overlay.classList.add("hidden");
+    clearLost();
     render(); save();
   }
   function restart(){
@@ -289,13 +339,16 @@
     tubes=initial.map(function(t){return t.slice();});
     history=[]; moves=0; sel=-1; won=false;
     overlay.classList.add("hidden");
+    clearLost();
     render(); save();
   }
   function undo(){
     if(!history.length || won) return;
     tubes=history.pop();
     moves=Math.max(0,moves-1); sel=-1;
+    clearLost();
     render(); save();
+    scheduleLossCheck();
   }
   function save(){
     try{localStorage.setItem(SAVE_KEY,JSON.stringify({
@@ -321,6 +374,12 @@
   document.getElementById("newgame").addEventListener("click",newGame);
   document.getElementById("again").addEventListener("click",newGame);
   document.getElementById("menu").addEventListener("click",function(){ location.href="./"; });
+  document.getElementById("lostUndo").addEventListener("click",undo);
+  document.getElementById("lostRestart").addEventListener("click",restart);
+  document.getElementById("lostKeep").addEventListener("click",function(){
+    lostDismissed=true;
+    lostOverlay.classList.add("hidden");
+  });
   var dbtns=document.querySelectorAll(".diffs button");
   for(var k2=0;k2<dbtns.length;k2++){
     (function(btn){
@@ -332,7 +391,7 @@
   }
 
   if(!load()){ newGame(); }
-  else { render(); if(won){ overlay.classList.remove("hidden"); } }
+  else { render(); if(won){ overlay.classList.remove("hidden"); } else { scheduleLossCheck(); } }
 })();
 </script>
 </body>
