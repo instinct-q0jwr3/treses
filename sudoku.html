@@ -277,6 +277,7 @@
     }
     won=true;
     completed[diff]=(completed[diff]||0)+1;
+    render();
     document.getElementById("finalText").textContent="Has resuelto el sudoku en dificultad "+DIFF_LABEL[diff]+".";
     save();
     setTimeout(function(){ overlay.classList.remove("hidden"); },350);
