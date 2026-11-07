@@ -323,7 +323,7 @@
       if (i > 0 && Math.abs(decisions[i] - decisions[i-1]) > 1e-9) movs++;
     }
     var medio = Math.round(suma / decisions.length * 100);
-    $('revResumen').textContent = 'Tus decisiones: de media llevaste un ' + medio + ' % en el fondo índice y cambiaste el reparto ' + movs + ' veces.';
+    $('revResumen').textContent = 'Tus decisiones: de media llevaste un ' + medio + ' % en el fondo índice y cambiaste el reparto ' + movs + (movs === 1 ? ' vez.' : ' veces.');
     fila('cTuF','cTuR','cTuD', r);
     fila('cBhF','cBhR','cBhD', bh);
     fila('cAcF','cAcR','cAcD', ac);
@@ -337,7 +337,10 @@
     $('revFuentes').innerHTML = fu;
     if (experimento) {
       $('replayBanner2').innerHTML = '<div class="banner">Modo experimento: ya conocías la época, así que este resultado no cuenta como prueba a ciegas.</div>';
+    } else {
+      $('replayBanner2').innerHTML = '';
     }
+    experimento = true;
   }
 
   function guardar(){
@@ -345,7 +348,6 @@
     var r = simActual();
     if (save.best === null || r.final > save.best) save.best = r.final;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
-    experimento = true;
   }
 
   $('btnEmpezar').addEventListener('click', function(){
