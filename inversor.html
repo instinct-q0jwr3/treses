@@ -156,8 +156,23 @@
         <tr><td><b>Tú</b></td><td id="cTuF"></td><td id="cTuR"></td><td id="cTuD"></td></tr>
         <tr><td>Comprar y mantener</td><td id="cBhF"></td><td id="cBhR"></td><td id="cBhD"></td></tr>
         <tr><td>Todo en efectivo</td><td id="cAcF"></td><td id="cAcR"></td><td id="cAcD"></td></tr>
+        <tr><td>La mejor, conociendo el futuro</td><td id="cOptF"></td><td id="cOptR"></td><td id="cOptD"></td></tr>
       </table>
       <p class="muted" style="margin:8px 0 0">La <b>rentabilidad</b> mide solo la inversión: el gasto del mes 12 no cuenta como pérdida. El <b>valor final</b> sí lo descuenta, porque ese dinero ya no está.</p>
+    </div>
+    <div class="card">
+      <div style="font-weight:800; font-size:.9rem; margin-bottom:4px">¿Cuál era la mejor estrategia?</div>
+      <div style="font-weight:800; font-size:.82rem; margin:8px 0 2px">La mejor posible, conociendo el futuro (solo mirando atrás)</div>
+      <p style="font-size:.85rem; line-height:1.5; margin:4px 0">Habría terminado con <b id="optFinal"></b>, con una rentabilidad de la inversión del <span id="optRent"></span> y sin llegar a caer. Habría jugado así:</p>
+      <div class="recap" id="optTramos"></div>
+      <p class="muted" style="margin:8px 0 0">Esta estrategia solo existe mirando atrás: exige saber el resultado de cada mes antes de vivirlo. Con otra época u otras reglas sería completamente distinta, así que no sirve como receta. Está calculada con búsqueda exhaustiva sobre todas las combinaciones de las 5 opciones en los 24 meses; solo se descartaron las ramas que ni regalando las comisiones y acertando cada mes podían mejorarla.</p>
+      <div style="font-weight:800; font-size:.82rem; margin:12px 0 2px">Lo que sí tenía sentido decidir sin conocer el futuro</div>
+      <ul class="notas">
+        <li><b>Apartar el gasto previsto:</b> quien llevaba los 1.500 € del mes 12 en efectivo los tenía seguros; quien los llevaba en el fondo tuvo que vender con coste, y si ese mes caía, con pérdida.</li>
+        <li><b>Moverse poco:</b> cada entrada o salida cuesta un 0,5 %, y para ganar entrando y saliendo hay que acertar dos veces: cuándo salir y cuándo volver a entrar. Moverse mucho se come la ventaja aunque aciertes la dirección algunas veces.</li>
+        <li><b>Decidir antes de empezar cuánta caída puedes aguantar:</b> en esta época el fondo llegó a caer más de un 50 % desde su máximo. Nadie sabía cuándo tocaría suelo: el mercado marcó un máximo histórico poco antes de hundirse y tocó fondo justo antes de rebotar con fuerza.</li>
+        <li><b>Aceptar la incertidumbre:</b> con la información de cada momento había argumentos tanto para estar dentro como para estar fuera. Ninguna regla garantiza un buen resultado: con otra época, estos mismos criterios habrían dado otros números.</li>
+      </ul>
     </div>
     <div class="card">
       <div style="font-weight:800; font-size:.9rem; margin-bottom:4px">Para pensar</div>
@@ -186,7 +201,7 @@
   </div>
 
 </div>
-<script src="bolsa-engine.js?v=2"></script>
+<script src="bolsa-engine.js?v=3"></script>
 <script>
 (function(){
   var D = BolsaEngine.DATA;
@@ -328,6 +343,7 @@
     fila('cTuF','cTuR','cTuD', r);
     fila('cBhF','cBhR','cBhD', bh);
     fila('cAcF','cAcR','cAcD', ac);
+    pintarOptimo();
     var rec = '';
     for (i = 0; i < D.nMonths; i++) {
       rec += '<div><span class="m">' + D.realMonths[i] + '</span><span class="' + (r.rows[i].marketRet >= 0 ? 'sube' : 'baja') + '">' + pct(r.rows[i].marketRet) + '</span> · ' + D.events[i] + '</div>';
@@ -342,6 +358,26 @@
       $('replayBanner2').innerHTML = '';
     }
     experimento = true;
+  }
+
+  function pintarOptimo(){
+    var opt = BolsaEngine.computeOptimal();
+    var s = BolsaEngine.simulate(opt.decisions);
+    fila('cOptF','cOptR','cOptD', s);
+    $('optFinal').textContent = fmt(s.final);
+    $('optRent').textContent = pct(s.flowReturn).replace('+','');
+    var html = '';
+    var i = 0;
+    while (i < D.nMonths) {
+      var j = i;
+      while (j + 1 < D.nMonths && Math.abs(opt.decisions[j + 1] - opt.decisions[i]) < 1e-9) j++;
+      var d = opt.decisions[i];
+      var cuando = D.realMonths[i] + (j > i ? ' - ' + D.realMonths[j] : '');
+      var que = d === 0 ? 'todo en efectivo' : (d === 1 ? 'todo en el fondo' : Math.round(d * 100) + ' % en el fondo');
+      html += '<div><span class="m">' + cuando + '</span>' + que + '</div>';
+      i = j + 1;
+    }
+    $('optTramos').innerHTML = html;
   }
 
   function guardar(){

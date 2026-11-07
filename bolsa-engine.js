@@ -135,5 +135,87 @@
     return simulate(d, opts);
   }
 
-  return { DATA: DATA, simulate: simulate, buyAndHold: buyAndHold, allCash: allCash };
+
+  /* Búsqueda de la mejor estrategia posible CONOCIENDO el futuro (solo para la revelación final).
+   * optimize(params): búsqueda exhaustiva con poda por cota teórica.
+   *   params: { closes (n+1 puntos), nMonths, feeRate, withdrawalMonth, withdrawalAmount,
+   *             startCapital, choices (fracciones permitidas) }
+   * La poda solo descarta una rama cuando ni regalando las comisiones y acertando el mejor
+   * movimiento posible cada mes restante podría superar la mejor solución ya encontrada,
+   * así que el resultado es el óptimo exacto bajo estas reglas (verificado en test/ con
+   * enumeración completa sin poda en casos pequeños).
+   * Devuelve { decisions, final, stats:{nodes, leaves, pruned} }.
+   */
+  function optimize(params) {
+    var closes = params.closes, n = params.nMonths, fee = params.feeRate;
+    var wMonth = params.withdrawalMonth, wAmount = params.withdrawalAmount;
+    if (wMonth > n || wMonth < 1) wAmount = 0;   // gasto fuera del horizonte: no aplica
+    var choices = params.choices;
+    var r = [], m = [], i, t, k;
+    for (i = 1; i <= n; i++) { r.push(closes[i] / closes[i - 1] - 1); m.push(Math.max(1, 1 + r[i - 1])); }
+    var P = []; P[n + 1] = 1;              // P[t] = mejor multiplicador posible de los meses t..n
+    for (t = n; t >= 1; t--) P[t] = P[t + 1] * m[t - 1];
+    function bound(t, V) {                 // cota optimista del valor final desde el inicio del mes t con valor V
+      if (t > n) return V;
+      if (t > wMonth || wAmount <= 0) return V * P[t];
+      var pre = 1;                          // crecimiento optimista hasta el mes del gasto (excluido)
+      for (k = t; k < wMonth; k++) pre *= m[k - 1];
+      return Math.max(0, V * pre - wAmount) * m[wMonth - 1] * P[wMonth + 1];
+    }
+    function step(cash, idx, d, t) {        // misma transición mensual que simulate()
+      var V = cash + idx;
+      var target = d * V;
+      var f = Math.abs(target - idx) * fee;
+      idx = target; cash = V - idx;
+      if (cash >= f) cash -= f; else { idx -= (f - cash); cash = 0; }
+      if (t === wMonth && wAmount > 0) {
+        var need = wAmount;
+        var wout = Math.min(cash, need); cash -= wout; need -= wout;
+        if (need > 1e-9) {
+          var s = Math.min(idx, need);
+          idx -= s;
+          var wf = s * fee;
+          if (cash >= wf) cash -= wf; else { idx -= (wf - cash); cash = 0; }
+        }
+      }
+      idx *= (1 + r[t - 1]);
+      return [cash, idx];
+    }
+    var stats = { nodes: 0, leaves: 0, pruned: 0 };
+    var best = -Infinity, bestPath = null, path = [];
+    function solve(t, cash, idx) {
+      stats.nodes++;
+      if (t > n) {
+        stats.leaves++;
+        var v = cash + idx;
+        if (v > best + 1e-9) { best = v; bestPath = path.slice(); }
+        return;
+      }
+      if (bound(t, cash + idx) <= best + 1e-6) { stats.pruned++; return; }
+      var kids = [], j;
+      for (j = 0; j < choices.length; j++) {
+        var st = step(cash, idx, choices[j], t);
+        kids.push({ d: choices[j], cash: st[0], idx: st[1], b: bound(t + 1, st[0] + st[1]) });
+      }
+      kids.sort(function (a, b) { return b.b - a.b; });   // primero lo más prometedor: buena solución temprano
+      for (j = 0; j < kids.length; j++) {
+        path.push(kids[j].d);
+        solve(t + 1, kids[j].cash, kids[j].idx);
+        path.pop();
+      }
+    }
+    solve(1, params.startCapital, 0);
+    return { decisions: bestPath, final: best, stats: stats };
+  }
+
+  // Óptimo de la partida real: las 5 opciones de los botones, reglas y datos del juego.
+  function computeOptimal() {
+    return optimize({
+      closes: DATA.closes, nMonths: DATA.nMonths, feeRate: DATA.feeRate,
+      withdrawalMonth: DATA.withdrawalMonth, withdrawalAmount: DATA.withdrawalAmount,
+      startCapital: DATA.startCapital, choices: [0, 0.25, 0.5, 0.75, 1]
+    });
+  }
+
+  return { DATA: DATA, simulate: simulate, buyAndHold: buyAndHold, allCash: allCash, optimize: optimize, computeOptimal: computeOptimal };
 });

@@ -78,5 +78,82 @@ var sm = E.simulate(mix);
 ok(sm.flowReturn > sm.totalReturn, '50/50: flowReturn > variación del saldo');
 ok(sm.flowReturn < 0 && sm.flowReturn > -0.35, '50/50: rentabilidad de inversión en rango razonable');
 
+
+console.log('10. Optimizador: casos pequenos contra enumeracion completa independiente');
+// Fuerza bruta sin poda ni cotas, con su propia copia de las reglas: si la poda del
+// optimizador descartara algo mejorable, aqui saldria un valor distinto.
+function pasoBruto(cash, idx, d, t, fee, wMonth, wAmount, r) {
+  var V = cash + idx;
+  var target = d * V;
+  var f = Math.abs(target - idx) * fee;
+  idx = target; cash = V - idx;
+  if (cash >= f) cash -= f; else { idx -= (f - cash); cash = 0; }
+  if (t === wMonth && wAmount > 0) {
+    var need = wAmount;
+    var wout = Math.min(cash, need); cash -= wout; need -= wout;
+    if (need > 1e-9) {
+      var s = Math.min(idx, need);
+      idx -= s;
+      var wf = s * fee;
+      if (cash >= wf) cash -= wf; else { idx -= (wf - cash); cash = 0; }
+    }
+  }
+  idx *= (1 + r[t - 1]);
+  return [cash, idx];
+}
+function bruto(params) {
+  var r = [];
+  for (var i = 1; i <= params.nMonths; i++) r.push(params.closes[i] / params.closes[i - 1] - 1);
+  var best = -Infinity, bestD = null, path = [];
+  (function rec(t, cash, idx) {
+    if (t > params.nMonths) {
+      var v = cash + idx;
+      if (v > best + 1e-9) { best = v; bestD = path.slice(); }
+      return;
+    }
+    for (var j = 0; j < params.choices.length; j++) {
+      var st = pasoBruto(cash, idx, params.choices[j], t, params.feeRate, params.withdrawalMonth, params.withdrawalAmount, r);
+      path.push(params.choices[j]);
+      rec(t + 1, st[0], st[1]);
+      path.pop();
+    }
+  })(1, params.startCapital, 0);
+  return { final: best, decisions: bestD };
+}
+var CH = [0, 0.25, 0.5, 0.75, 1];
+function casoPeq(nombre, params, finalEsp, decEsp) {
+  var o = E.optimize(params), b = bruto(params);
+  cerca(o.final, b.final, 1e-6, nombre + ': optimize = enumeracion completa');
+  if (finalEsp !== null) cerca(o.final, finalEsp, 0.01, nombre + ': valor esperado a mano');
+  if (decEsp) ok(JSON.stringify(o.decisions) === JSON.stringify(decEsp), nombre + ': decisiones esperadas');
+}
+casoPeq('2 meses alcistas', { closes: [100, 110, 121], nMonths: 2, feeRate: 0.005, withdrawalMonth: 12, withdrawalAmount: 0, startCapital: 10000, choices: CH }, 12039.50, [1, 1]);
+casoPeq('2 meses bajistas', { closes: [100, 90, 81], nMonths: 2, feeRate: 0.005, withdrawalMonth: 12, withdrawalAmount: 0, startCapital: 10000, choices: CH }, 10000, [0, 0]);
+casoPeq('sube y baja', { closes: [100, 110, 99], nMonths: 2, feeRate: 0.005, withdrawalMonth: 12, withdrawalAmount: 0, startCapital: 10000, choices: CH }, 10890.28, [1, 0]);
+casoPeq('gasto en mes bajista: mejor todo efectivo', { closes: [100, 90], nMonths: 1, feeRate: 0.005, withdrawalMonth: 1, withdrawalAmount: 1500, startCapital: 10000, choices: CH }, 8500, [0]);
+casoPeq('mercado plano: moverse solo cuesta', { closes: [100, 100, 100], nMonths: 2, feeRate: 0.005, withdrawalMonth: 12, withdrawalAmount: 0, startCapital: 10000, choices: CH }, 10000, [0, 0]);
+casoPeq('4 meses mixtos con gasto en el 3', { closes: [100, 105, 95, 105, 100], nMonths: 4, feeRate: 0.005, withdrawalMonth: 3, withdrawalAmount: 1500, startCapital: 10000, choices: CH }, null, null);
+casoPeq('8 meses con datos reales y gasto en el 6', { closes: D.closes.slice(0, 9), nMonths: 8, feeRate: D.feeRate, withdrawalMonth: 6, withdrawalAmount: 1500, startCapital: 10000, choices: CH }, null, null);
+casoPeq('sin gasto (importe 0)', { closes: [100, 105, 95, 105], nMonths: 3, feeRate: 0.005, withdrawalMonth: 2, withdrawalAmount: 0, startCapital: 10000, choices: CH }, null, null);
+
+console.log('11. Optimo de la partida real (24 meses, reglas del juego)');
+var opt = E.computeOptimal();
+var optSim = E.simulate(opt.decisions);
+ok(opt.decisions.length === 24, 'devuelve 24 decisiones');
+var validas = opt.decisions.every(function (d) { return CH.indexOf(d) >= 0; });
+ok(validas, 'todas las decisiones son de las 5 opciones del juego');
+cerca(optSim.final, opt.final, 1e-6, 'simulate() reproduce el valor final del optimo');
+cerca(optSim.withdrawnTotal, 1500, 0.01, 'el optimo tambien atiende el gasto del mes 12');
+ok(opt.final > ac.final, 'supera a todo en efectivo (hubo meses ganadores)');
+ok(opt.final > bh.final && opt.final > sh.final, 'supera a comprar-mantener y a 50/50');
+var peor = true;
+for (i = 0; i < 300; i++) {
+  var rnd = [];
+  for (var j = 0; j < 24; j++) rnd.push(CH[Math.floor(Math.random() * 5)]);
+  if (E.simulate(rnd).final > opt.final + 1e-6) peor = false;
+}
+ok(peor, 'ninguna de 300 estrategias aleatorias la supera');
+ok(opt.stats.pruned > 0 && opt.stats.nodes < 5000000, 'busqueda con poda acotada (' + opt.stats.nodes + ' nodos, ' + opt.stats.pruned + ' ramas descartadas)');
+ok(optSim.maxDrawdown < 0.0001, 'quien conoce el futuro no llega a caer (caida maxima ~0)');
 console.log(fallos === 0 ? '\nTODAS LAS PRUEBAS PASAN' : '\n' + fallos + ' PRUEBAS FALLAN');
 process.exit(fallos === 0 ? 0 : 1);
