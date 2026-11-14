@@ -20,7 +20,7 @@ async function play(col){if(busy||$('confirm').open||$('gameover').open)return;c
 state=result.state;best=Math.max(best,state.score);save();
 for(const f of result.frames){board(f.cols,f);$('status').textContent=f.type==='merge'?`${f.chain>1?'¡Cadena ×'+f.chain+'! ':''}+${fmt(f.gain)} puntos`:f.type==='clear'?`Se retiran los bloques menores de ${fmt(f.minimum)}.`:'↓';await delay(reduced?0:f.type==='drop'?190:240);}
 busy=false;render();$('status').textContent=result.removed?`Nuevo nivel: ahora los bloques empiezan en ${fmt(E.floor(state))}.`:result.chain?`${result.chain>1?'¡Cadena de '+result.chain+' fusiones! ':''}+${fmt(result.gain)} puntos. Bloque mayor: ${fmt(state.peak)}.`:'Sin reloj. Piensa tu siguiente jugada.';lost();}
-function undo(){if(busy||!previous)return;state=previous;previous=null;if($('gameover').open)$('gameover').close();save();render();$('status').textContent='Último lanzamiento deshecho.';}
+function undo(){if(busy||!previous)return;state=E.repair(previous);previous=null;if($('gameover').open)$('gameover').close();save();render();$('status').textContent='Último lanzamiento deshecho.';}
 function fresh(){if(busy)return;if($('confirm').open)$('confirm').close();if($('gameover').open)$('gameover').close();state=E.create();previous=null;save();render();$('status').textContent='Sin reloj. Piensa tu siguiente jugada.';}
 $('undo').onclick=undo;$('rescue').onclick=undo;$('new').onclick=()=>{$('confirm').showModal();};$('cancel').onclick=()=>{$('confirm').close();};$('restart').onclick=fresh;$('again').onclick=fresh;
 document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||e.target.closest('button,summary,dialog'))return;if(/^[1-5]$/.test(e.key)){e.preventDefault();play(Number(e.key)-1);}});
