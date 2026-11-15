@@ -17,13 +17,14 @@
 <div class="arena"><div class="board" id="board" aria-label="Tablero de cinco columnas y seis filas"><div class="grid" id="grid" aria-hidden="true"></div><div class="tiles" id="tiles" aria-hidden="true"></div><div class="columns" id="columns"></div></div></div>
 <div id="status" class="status" aria-live="polite">Sin reloj. Piensa tu siguiente jugada.</div>
 <p class="legend">K = mil · M = millón · G = mil millones · T = billón · P = mil billones. Toca un marcador o un bloque de arriba para ver su valor.</p>
-<div class="toolbar"><button class="btn" id="undo">↶ Deshacer</button><button class="btn" id="new">Nueva partida</button></div>
+<div class="toolbar"><button class="btn" id="undo">↶ Deshacer</button><button class="btn" id="new">Nueva partida</button><button class="btn" id="resetBest">Reiniciar récord</button></div>
 <div class="storage-warning" id="storageWarning" hidden>No se puede guardar en este navegador. No cierres esta pestaña si quieres continuar.</div>
 <details><summary>Cómo se juega</summary><p>Toca una columna: el bloque cae hasta el fondo o hasta el bloque que haya debajo. Si toca números iguales por un lado, arriba o abajo, los absorbe. Cada vecino igual duplica su valor: un 2 con otro 2 hace 4; con dos vecinos de 2 hace 8. Las fusiones pueden encadenarse y los bloques caen para llenar los huecos. Si al caer quedan juntos bloques iguales en cualquier parte del tablero, también se fusionan.</p><p>Los bloques que creas al fusionar suman puntos. Cuando tu bloque mayor llega a 1024 empiezan a retirarse los bloques más pequeños, y después se van retirando poco a poco al crecer el mayor (en las partidas nuevas, cada dos potencias de dos; las partidas empezadas antes siguen con su regla original). También aumenta el rango de bloques nuevos.</p><p>Las columnas llenas no admiten más bloques. La partida termina cuando no queda ninguna columna libre. Puedes deshacer el último lanzamiento, incluso al perder. En ordenador: teclas 1 a 5 para soltar.</p><p>Versión propia inspirada en Drop the Number, sin anuncios, monedas ni compras. Juegas a tu ritmo: no hay caída automática.</p></details>
 <p class="foot">Partida y récord guardados en este navegador. No se modifica ningún otro juego.</p>
 </main>
 <dialog id="confirm"><h2>¿Empezar de nuevo?</h2><p>Se borrará esta partida. Tu récord se conserva.</p><div class="dialog-actions"><button class="btn" id="cancel">Seguir jugando</button><button class="btn" id="restart">Empezar</button></div></dialog>
+<dialog id="confirmBest"><h2>¿Reiniciar el récord?</h2><p id="bestText"></p><div class="dialog-actions"><button class="btn" id="cancelBest">Cancelar</button><button class="btn" id="doBest">Reiniciar</button></div></dialog>
 <dialog id="gameover"><h2>Tablero lleno</h2><p id="result"></p><div class="dialog-actions"><button class="btn" id="rescue">Deshacer</button><button class="btn" id="again">Otra partida</button></div></dialog>
-<script src="drop-engine.js?v=5"></script>
-<script src="drop-ui.js?v=5"></script>
+<script src="drop-engine.js?v=6"></script>
+<script src="drop-ui.js?v=6"></script>
 </body></html>
