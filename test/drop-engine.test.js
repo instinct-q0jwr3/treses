@@ -24,3 +24,12 @@ function strays(cols){for(let c=0;c<5;c++)for(let r=0;r<cols[c].length;r++){if(c
 let seed=4637812;const rng=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/2**32);
 let moves=0;for(let g=0;g<120;g++){s=E.create(rng);for(let i=0;i<800&&!E.over(s);i++){const legal=s.cols.map((c,i)=>c.length<6?i:-1).filter(i=>i>=0);const col=legal[Math.floor(rng()*legal.length)];const before=JSON.stringify(s);r=E.drop(s,col,rng);assert.equal(JSON.stringify(s),before);assert.ok(E.valid(r.state));assert.ok(r.state.score>=s.score);assert.ok(r.state.cols.every(c=>c.every(v=>v>=E.floor(r.state))));assert.equal(r.state.moves,s.moves+1);assert.ok(!strays(r.state.cols),'sin bloques iguales juntos tras el lanzamiento');s=r.state;moves++;}}
 console.log('PASS: vertical, lateral, multiple, chains, gravity, milestone cleanup, full columns, immutability, validation and '+moves+' seeded random launches.');
+
+// Display labels stay short for any finite value, including huge late-game ones.
+{
+  const assert=require('assert');const E=require('../drop-engine.js');
+  for(let k=1;k<=1023;k++){const n=2**k;for(const m of [1,1.49,1.999]){const l=E.label(n*m<Infinity?n*m:n);assert(l.length<=7,l);assert(!/1000/.test(l),l);}}
+  assert.strictEqual(E.label(2),'2');assert.strictEqual(E.label(137438953472),'137.4B');assert.strictEqual(E.label(8796093022208),'8.8T');
+  assert.strictEqual(E.label(67506114885560,0),'67.5T');
+  console.log('PASS: compact labels for every power of two up to 2^1023');
+}

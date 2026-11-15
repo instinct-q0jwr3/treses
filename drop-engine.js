@@ -92,6 +92,17 @@ function repair(input){
   resolve(s,null,{chain:0,gain:0});
   return s;
 }
-const api={WIDTH,HEIGHT,copy,largest,floor,draw,create,valid,over,drop,repair};
+/* Short display form. Always at most 7 characters for any finite value. */
+const SUF=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No'];
+function label(n,plainBelow=1e6){
+  if(!Number.isFinite(n))return '∞';
+  if(n<plainBelow)return String(Math.round(n));
+  let i=Math.min(SUF.length-1,Math.floor(Math.log10(n)/3));
+  let v=n/10**(3*i);
+  if(Math.round(v*10)/10>=1000&&i<SUF.length-1){i++;v=n/10**(3*i);}
+  if(Math.round(v*10)/10>=1000)return n.toExponential(1).replace('e+','e');
+  return v.toFixed(1).replace(/\.0$/,'')+SUF[i];
+}
+const api={label,WIDTH,HEIGHT,copy,largest,floor,draw,create,valid,over,drop,repair};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.DropEngine=api;
 })(typeof window!=='undefined'?window:globalThis);
