@@ -4,18 +4,22 @@
 const WIDTH=5, HEIGHT=6;
 const copy=s=>JSON.parse(JSON.stringify(s));
 const largest=s=>Math.max(2,...s.cols.flat());
-const floor=s=>2**Math.max(1,Math.floor(Math.log2(s.peak||largest(s)))-8);
+const MAXB=2**1000, MAXS=1e300;
+/* rules 2 (new games): the retirement floor rises every second level (about 8.5 bits below the
+   largest block) instead of every level. Saves without `rules` keep the original rule 1 untouched. */
+const floor=s=>{const lg=Math.floor(Math.log2(s.peak||largest(s)))-8;return 2**Math.max(1,s.rules===2?Math.floor(lg/2)*2:lg);};
+const addScore=(s,x)=>{s.score=Math.max(s.score,Math.min(s.score+x,MAXS));};
 function draw(s,rng=Math.random){
   const min=Math.log2(floor(s));
   const max=Math.max(min+2,Math.min(min+5,Math.floor(Math.log2(s.peak||2))-2));
   return 2**(min+Math.min(max-min,Math.floor(rng()*(max-min+1))));
 }
 function create(rng=Math.random){
-  const s={version:1,cols:Array.from({length:WIDTH},()=>[]),score:0,peak:2,moves:0,current:2,next:2};
+  const s={version:1,rules:2,cols:Array.from({length:WIDTH},()=>[]),score:0,peak:2,moves:0,current:2,next:2};
   s.current=draw(s,rng); s.next=draw(s,rng);return s;
 }
 function valid(s){
-  return !!s && s.version===1 && Array.isArray(s.cols)&&s.cols.length===WIDTH&&s.cols.every(c=>Array.isArray(c)&&c.length<=HEIGHT&&c.every(power))&&[s.current,s.next,s.peak].every(power)&&Number.isFinite(s.score)&&s.score>=0&&Number.isInteger(s.moves)&&s.moves>=0;
+  return !!s && s.version===1 && (s.rules===undefined||s.rules===1||s.rules===2) && Array.isArray(s.cols)&&s.cols.length===WIDTH&&s.cols.every(c=>Array.isArray(c)&&c.length<=HEIGHT&&c.every(power))&&[s.current,s.next,s.peak].every(power)&&Number.isFinite(s.score)&&s.score>=0&&Number.isInteger(s.moves)&&s.moves>=0;
 }
 function power(n){return Number.isFinite(n)&&n>=2&&Number.isInteger(Math.log2(n));}
 function over(s){return s.cols.every(c=>c.length>=HEIGHT);}
@@ -36,13 +40,13 @@ function settleOnce(s,frames,acc){
         seen[nc][nr]=true;stack.push([nc,nr]);
       }
     }
-    if(comp.length<2)continue;
+    if(comp.length<2||v*2**(comp.length-1)>MAXB)continue;
     comp.sort((a,b)=>a[1]-b[1]||a[0]-b[0]);
     const [tc,tr]=comp[0];
     for(const [c2,r2] of comp.slice(1).sort((a,b)=>b[1]-a[1]))s.cols[c2].splice(r2,1);
     const result=v*2**(comp.length-1);
     s.cols[tc][tr]=result;
-    s.score+=result;s.peak=Math.max(s.peak,result);
+    addScore(s,result);s.peak=Math.max(s.peak,result);
     acc.chain++;acc.gain+=result;
     if(frames)frames.push({cols:copy(s.cols),col:tc,row:tr,type:'merge',value:result,chain:acc.chain,gain:result});
     return result;
@@ -70,12 +74,12 @@ function drop(input,col,rng=Math.random){
   for(let guard=0;guard<WIDTH*HEIGHT;guard++){
     const v=s.cols[col][row];
     const same=[[col,row-1],[col-1,row],[col+1,row],[col,row+1]].filter(([c,r])=>c>=0&&c<WIDTH&&r>=0&&s.cols[c][r]===v);
-    if(!same.length)break;
+    if(!same.length||v*2**same.length>MAXB)break;
     // All equal direct neighbours are absorbed at once; each one doubles the tile.
     const result=v*2**same.length;
     s.cols[col][row]=result;
     for(const [c,r] of same.sort((a,b)=>b[1]-a[1])){s.cols[c].splice(r,1);if(c===col&&r<row)row--;}
-    acc.chain++;acc.gain+=result;s.score+=result;s.peak=Math.max(s.peak,result);
+    acc.chain++;acc.gain+=result;addScore(s,result);s.peak=Math.max(s.peak,result);
     frames.push({cols:copy(s.cols),col,row,type:'merge',value:result,chain:acc.chain,gain:result});
   }
   s.peak=Math.max(s.peak,largest(s));
@@ -92,17 +96,17 @@ function repair(input){
   resolve(s,null,{chain:0,gain:0});
   return s;
 }
-/* Short display form. Always at most 7 characters for any finite value. */
-const SUF=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No'];
+/* Short display form with SI prefixes and Spanish decimal comma. Max 7 characters. */
+const SUF=['','K','M','G','T','P','E','Z','Y'];
 function label(n,plainBelow=1e6){
   if(!Number.isFinite(n))return '∞';
   if(n<plainBelow)return String(Math.round(n));
   let i=Math.min(SUF.length-1,Math.floor(Math.log10(n)/3));
   let v=n/10**(3*i);
   if(Math.round(v*10)/10>=1000&&i<SUF.length-1){i++;v=n/10**(3*i);}
-  if(Math.round(v*10)/10>=1000)return n.toExponential(1).replace('e+','e');
-  return v.toFixed(1).replace(/\.0$/,'')+SUF[i];
+  if(Math.round(v*10)/10>=1000)return n.toExponential(1).replace('e+','e').replace('.',',');
+  return v.toFixed(1).replace(/\.0$/,'').replace('.',',')+SUF[i];
 }
-const api={label,WIDTH,HEIGHT,copy,largest,floor,draw,create,valid,over,drop,repair};
+const api={MAXB,MAXS,label,WIDTH,HEIGHT,copy,largest,floor,draw,create,valid,over,drop,repair};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.DropEngine=api;
 })(typeof window!=='undefined'?window:globalThis);
